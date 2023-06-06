@@ -43,11 +43,11 @@ class Stariver():
         }
         # 需要请求网络并获取key和用户id
         try:
-            with open("stariver.ini") as f:
+            with open("configs/stariver.ini") as f:
                 self.config.read_file(f)
         except IOError:
             # 如果配置文件不存在，创建一个空的配置文件
-            with open("stariver.ini", "w") as f:
+            with open("configs/stariver.ini", "w") as f:
                 self.config.write(f)
         
         if self.config.has_option(self.token, 'key'):
@@ -62,7 +62,7 @@ class Stariver():
             encryption_response = requests.post("https://productapi.stariverpan.com/cmsprovider/v1/user/encryption-key",verify=False, headers=self.headers)
             encryption_result = json.loads(encryption_response.text)
             self.config.set(self.token, 'key',encryption_result['data']['Key'])
-            with open('stariver.ini', 'w') as f:
+            with open('configs/stariver.ini', 'w') as f:
                 self.config.write(f)
             self.key = self.config.get(self.token, 'key')
             self.uid = self.config.get(self.token, 'uid')
@@ -73,7 +73,6 @@ class Stariver():
         folderId=list_req.parent_file_id
         if folderId=='root':
             folderId='0'
-        print("fuck folderid is"+folderId)
         file_list = self.cache.get(f"{self.token}-files-{folderId}")
         # 如果缓存中没有结果，则重新请求并缓存结果
         if not file_list:
@@ -90,7 +89,6 @@ class Stariver():
                     'sortFlag':"upload",
                 }
                 response = requests.post("https://productapi.stariverpan.com/cloudfile/v1/all-files",verify=False, headers=self.headers, data=json.dumps(payload))
-                print(response.text)
                 result = json.loads(response.text)
                 kind = 0
                 download_url = None

@@ -23,11 +23,11 @@ config = configparser.SafeConfigParser()
 
 # 读取配置文件
 try:
-    with open("providers.ini") as f:
+    with open("configs/providers.ini") as f:
         config.read_file(f)
 except IOError:
     # 如果配置文件不存在，创建一个空的配置文件
-    with open("providers.ini", "w") as f:
+    with open("configs/providers.ini", "w") as f:
         config.write(f)
 
 providers = config.sections()
@@ -40,7 +40,6 @@ def create_provider_router(name):
         '''
         返回文件列表，请求需以json格式post过来，请勿以text请求，否则会报错
         '''
-        print(list_req)
         return provider.list_files(list_req)
 
     @router.post("/url")

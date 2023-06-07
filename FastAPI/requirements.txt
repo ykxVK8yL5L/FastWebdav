@@ -1,5 +1,4 @@
 datetime
-fastapi
+fastapi[full]
 requests
 cachelib
-uvicorn[standard]

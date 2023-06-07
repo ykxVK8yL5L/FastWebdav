@@ -1,4 +1,5 @@
-import os, sys, datetime
+import os, sys
+from datetime import datetime
 import configparser
 from fastapi import FastAPI,APIRouter,Request,Query,Path
 from fastapi.middleware.cors import CORSMiddleware
@@ -60,7 +61,7 @@ for provider in providers:
 
 @app.get("/",response_model=list[DavFile])
 async def root():
-    now = datetime.datetime.now()
+    now = datetime.now()
     # 格式化时间为字符串
     formatted_time = now.strftime("%Y-%m-%d %H:%M:%S")
     files = []

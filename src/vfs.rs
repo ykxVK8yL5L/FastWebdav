@@ -229,7 +229,7 @@ impl WebdavDriveFileSystem {
     }
 
     async fn list_files_and_cache( &self, path_str: String, parent_file_id: String)-> Result<Vec<WebdavFile>>{
-        info!(path = %path_str, parent_ukey=%parent_file_id,"cache dir");
+        info!(path = %path_str, parent_id=%parent_file_id,"cache dir");
         let req:FilesListRequest=FilesListRequest {path_str:json!(path_str),parent_file_id:json!(parent_file_id)}; 
         let mut file_list:Vec<WebdavFile>=vec![];
         if parent_file_id == '0'.to_string() && path_str == '/'.to_string() {

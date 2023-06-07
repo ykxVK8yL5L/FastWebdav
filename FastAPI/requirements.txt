@@ -2,3 +2,4 @@ datetime
 fastapi
 requests
 cachelib
+uvicorn[standard]

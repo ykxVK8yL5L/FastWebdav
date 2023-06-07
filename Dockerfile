@@ -8,8 +8,9 @@ RUN apk add tzdata && \
 	apk del tzdata
 
 COPY ./FastAPI /root
+VOLUME /root/configs/
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN apk add --no-cache bash && chmod +x /entrypoint.sh
 RUN mkdir -p /etc/fast-webdav
 WORKDIR /root/
 RUN pip install --no-cache-dir -r requirements.txt

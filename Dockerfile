@@ -1,4 +1,4 @@
-FROM python:3.10.10-alpine
+FROM python:3.10.11-slim
 ARG TARGETARCH
 ARG TARGETVARIANT
 RUN apk --no-cache add ca-certificates tini

@@ -4,7 +4,7 @@
 之前的几个webdav项目都是通过原生rust实现，技术难度并不大，但是扩展性太差。后来想着用rust做个webdav然后数据通过api提供统一格式就可以自由的扩展了，所以才有了这个项目。
 说到数据Python是获取数据的最佳选择了。才用FastAPI负责后端数据提供。具体接口信息可以看下:8000/docs里面的接口文档。   
 # 使用
-目前除了Docker还没有其它渠道使用该项目【Docker我还没做好，做好后放上地址】   
+目前除了Docker还没有其它渠道使用该项目【https://hub.docker.com/r/ykxvk8yl5l/fast-webdav】映射本地目录到/root/configs     
 第一次访问后会生成providers.ini这个是数据提供的入口，里面的配置并不是目录的配置，以下是示例文件
 ```
 [tmplink]

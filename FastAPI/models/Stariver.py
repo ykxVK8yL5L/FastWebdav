@@ -119,25 +119,17 @@ class Stariver():
 
     # 文件下载地址 返回下载地址
     def get_url(self,dav_file:DavFile):
-        token = self.getToken()
-        data = {
-            'action': 'download_req',
-            'ukey': dav_file.file_id,
-            'token': self.token,
-            'captcha': token,
-        }
-        response = requests.post('https://tmp-api.vx-cdn.com/api_v2/file', headers=self.headers, data=data)
-        result = json.loads(response.text)
+        #这个url已经在列表页面得到，不需要再请求保留添加过期注释供参考
         #设置三小时后过期
-        current_timestamp_sec = round(time.time())
-        expires_timestamp_sec = current_timestamp_sec+10800
-        download_url = result['data']
-        download_expires_url = ""
-        if '?' in download_url:
-            download_expires_url=f"{download_url}&x-oss-expires={expires_timestamp_sec}"
-        else:
-            download_expires_url=f"{download_url}?x-oss-expires={expires_timestamp_sec}"
-        return download_expires_url
+        # current_timestamp_sec = round(time.time())
+        # expires_timestamp_sec = current_timestamp_sec+10800
+        # download_url = result['data']
+        # download_expires_url = ""
+        # if '?' in download_url:
+        #     download_expires_url=f"{download_url}&x-oss-expires={expires_timestamp_sec}"
+        # else:
+        #     download_expires_url=f"{download_url}?x-oss-expires={expires_timestamp_sec}"
+        return ""
 
     # 以下都是辅助方法
     def sign(self,token: str, cid: str, time: int) -> str:

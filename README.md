@@ -20,7 +20,7 @@ name = pikpak
 provider = Meting(provider="meting",server='netease',playlist_id='60198')
 name = meting
 ```
-上面的代码中定义了4个provider,里面是我内置的几个模型，供参考。   
+上面的代码中定义了4个provider,里面是我内置的几个模型，其中meting是废的，由于接口没有提供size参数，固定了文件大小，再加上目前的接口基本无法提供完整数据仅供参考。   
 配置字段[tmplink]这是唯一值相当于一个模型实例的名称   
 provider这个的定义就是一个模型实例的代码，通过eval将这个字段的值转换成一个类的实例，里面的配置和参数可以在models目录下的类里自己处理
 name字段是要目录文件夹的显示名字

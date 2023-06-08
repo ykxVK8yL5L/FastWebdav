@@ -49,6 +49,15 @@ def create_provider_router(name):
         返回文件的下载地址,有些可以在列表页算出来的就不需要请求了，可以添加?x-oss-expires=时间戳 来控制过期时间，如果rust的缓存时间先到以缓存时间为准
         '''
         return provider.get_url(dav_file)
+    
+    @router.post("/init")
+    async def init_upload(init_file: InitUploadRequest)-> InitUploadResponse:
+        '''
+        返回创建文件的响应，具体看schemas.初始化文件分片上传，通常是向服务器请求创建文件返回一个上传地址分片大小等信息，由于各个服务需要不一样，不一定全部可用，不断完善吧
+        '''
+        return provider.init_upload(init_file)
+
+
 
     return router
 

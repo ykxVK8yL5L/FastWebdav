@@ -45,6 +45,10 @@ pub use crate::model::*;
 
 
 const UA: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) xiaolongyunpan/3.2.7 Chrome/100.0.4896.143 Electron/18.2.0 Safari/537.36";
+const API_URL:&str = "http://127.0.0.1:8000/";
+
+
+
 
 #[derive(Clone)]
 pub struct WebdavDriveFileSystem {
@@ -185,33 +189,10 @@ impl WebdavDriveFileSystem {
     }
 
     pub async fn remove_file(&self, file_id: &str) -> Result<()> {
-        // let mut params = HashMap::new();
-        // params.insert("action", "remove_from_workspace");
-        // params.insert("token", &self.credentials.token);
-        // params.insert("ukey", &file_id);
-        // let delRes:FileResponse = match  self.post_request(TMPFILEURL.to_string(),&params).await{
-        //     Ok(res)=>res.unwrap(),
-        //     Err(err)=>{
-        //         panic!("删除文件失败: {:?}", err)
-        //         //return Err(err);
-        //     }
-        // };
         Ok(())
     }
 
     pub async fn rename_file(&self, file_id: &str, new_name: &str) -> Result<()> {
-        // let mut params = HashMap::new();
-        // params.insert("action", "rename");
-        // params.insert("token", &self.credentials.token);
-        // params.insert("ukey", &file_id);
-        // params.insert("name", new_name);
-        // let delRes:FileResponse = match  self.post_request(TMPFILEURL.to_string(),&params).await{
-        //     Ok(res)=>res.unwrap(),
-        //     Err(err)=>{
-        //         panic!("重命名文件失败: {:?}", err)
-        //         //return Err(err);
-        //     }
-        // };
         Ok(())
     }
 
@@ -233,7 +214,7 @@ impl WebdavDriveFileSystem {
         let req:FilesListRequest=FilesListRequest {path_str:json!(path_str),parent_file_id:json!(parent_file_id)}; 
         let mut file_list:Vec<WebdavFile>=vec![];
         if parent_file_id == '0'.to_string() && path_str == '/'.to_string() {
-            let list_url = "http://127.0.0.1:8000/".to_string();
+            let list_url = API_URL.to_string();
             let files:Vec<WebdavFile> = match self.get_request(list_url, &req).await{
                 Ok(res)=>res.unwrap(),
                 Err(err)=>{
@@ -248,7 +229,7 @@ impl WebdavDriveFileSystem {
                     panic!("文件列表请求失败: {:?}", err)
                 }
             };
-            let list_url = format!("http://127.0.0.1:8000/{}/list",parent_file.provider.unwrap());
+            let list_url = format!("{}{}/list",API_URL,parent_file.provider.unwrap());
             let files:Vec<WebdavFile> = match self.post_request(list_url, &req).await{
                 Ok(res)=>res.unwrap(),
                 Err(err)=>{
@@ -445,7 +426,8 @@ impl WebdavDriveFileSystem {
                 debug!("下载地址为空，开始请求新下载地址");
             }
         }
-        let download_url = format!("http://127.0.0.1:8000/{}/url",davfile.clone().provider.unwrap());
+
+        let download_url = format!("{}{}/url",API_URL,davfile.clone().provider.unwrap());
         let donwload_url:String = match self.post_request(download_url, &davfile).await{
             Ok(res)=>res.unwrap(),
             Err(err)=>{
@@ -471,60 +453,35 @@ impl WebdavDriveFileSystem {
     }
 
 
-    pub async fn create_file_with_proof(&mut self,name: &str, parent_file_id: &str, hash:&str, size: u64) ->  Result<UploadInitResponse> {
+    pub async fn create_file_with_proof(&mut self,provider:&str,name: &str, parent_file_id: &str, hash:&str, size: u64) ->  Result<UploadInitResponse> {
         debug!(size = size,"create_file_with_proof");
         let sizeStr=size.to_string(); 
+        
         let init_file_req = UploadInitRequest{
-            hash: hash.to_string(),
-            fileHash: hash.to_string(),
-            fileName: name.to_string(),
-            fileSize: size,
-            fileCid: "".to_string(),
-            fileState:0,
-            parentId: parent_file_id.to_string(),
-            chunkSize: 0,
-            suffix:"".to_string(),
-            partList:vec![],
+            provider: provider.to_string(),
+            name: hash.to_string(),
+            parent_file_id: name.to_string(),
+            sha1: hash.to_string(),
+            size: size,
         };
 
-        let file_upload_init_res:UploadInitResponse = match  self.post_request("http://uploadapi2.stariverpan.com:18090/v2/file/init".to_string(),&init_file_req).await{
+        let init_upload_url = format!("{}{}/init",API_URL,provider);
+        let file_upload_init_res:UploadInitResponse = match  self.post_request(init_upload_url,&init_file_req).await{
             Ok(res)=>res.unwrap(),
             Err(err)=>{
                 panic!("初始化文件上传请求失败: {:?}", err)
             }
         };
 
-       &self.set_upload_buffer_size(file_upload_init_res.data.chunkSize);
        debug!("输出创建文件信息开始");
        debug!("{:?}",file_upload_init_res);
        debug!("输出创建文件信息结束");
 
-       if file_upload_init_res.data.fileCid.len()>5 {
-            let add_file_req = AddFileRequest{
-                filePath: "".to_string(),
-                dirPath: vec![],
-                fileName: file_upload_init_res.data.fileName,
-                fileSize: file_upload_init_res.data.fileSize,
-                fileCid: file_upload_init_res.data.fileCid,
-                fileType: 4,
-                parentId: parent_file_id.to_string(),
-                suffix: file_upload_init_res.data.fileExtension,
-                thumbnail: "".to_string(),
-                duration: 1,
-                width: "0".to_string(),
-                height: "0".to_string()
-            };
-            let add_file_res:AddFileResponse = match self.post_request("https://productapi.stariverpan.com/cmsprovider/v2.5/cloud/add-file".to_string(), &add_file_req).await{
-                Ok(res)=>res.unwrap(),
-                Err(err)=>{
-                    panic!("初始化文件上传请求失败: {:?}", err)
-                }
-            };
-        
-            panic!("文件已经上传，无需再次上传")
-        }
+       if file_upload_init_res.code != 200 as u64 {
+           panic!("{}",&file_upload_init_res.message);
+       }
 
-       
+       &self.set_upload_buffer_size(file_upload_init_res.data.chunkSize);
         
         Ok(file_upload_init_res)
 
@@ -670,61 +627,6 @@ impl WebdavDriveFileSystem {
             callback_index+=1;
         }
 
-
-        //经过上面的查询依然有可能得不到cid因此需要再次尝试请求创建文件,如果5次都没有得到cid再次上传吧  再次上传的话不会再进行上传的请求直接秒传
-        let hash_str = &file.clone().sha1.unwrap();
-        let init_file_req = UploadInitRequest{
-            hash: format!("{}",hash_str),
-            fileHash: format!("{}",hash_str),
-            fileName: file.clone().name,
-            fileSize: file.size.parse::<u64>().unwrap(),
-            fileCid: "".to_string(),
-            fileState:0,
-            parentId: file.parent_id.to_string(),
-            chunkSize: 0,
-            suffix:"".to_string(),
-            partList:vec![],
-        };
-        //循环请求创建文件5次 如果都没有得到就退出
-        let mut create_index=1;
-        loop {
-            debug!("请求创建文件第{}次结果",&callback_index);
-              let file_upload_init_res:UploadInitResponse = match  self.post_request("http://uploadapi2.stariverpan.com:18090/v2/file/init".to_string(),&init_file_req).await{
-                Ok(res)=>res.unwrap(),
-                Err(err)=>{
-                    panic!("初始化文件上传请求失败: {:?}", err)
-                }
-            };
-            let file_type = get_file_type(&file_upload_init_res.data.fileName);
-            if file_upload_init_res.data.fileCid.len()>5 {
-                let add_file_req = AddFileRequest{
-                    filePath: "".to_string(),
-                    dirPath: vec![],
-                    fileName: file_upload_init_res.data.fileName,
-                    fileSize: file_upload_init_res.data.fileSize,
-                    fileCid: file_upload_init_res.data.fileCid,
-                    fileType: 4,
-                    parentId: file.parent_id.to_string(),
-                    suffix: file_upload_init_res.data.fileExtension,
-                    thumbnail: "".to_string(),
-                    duration: 1,
-                    width: "0".to_string(),
-                    height: "0".to_string()
-                };
-                let add_file_res:AddFileResponse = match self.post_request("https://productapi.stariverpan.com/cmsprovider/v2.5/cloud/add-file".to_string(), &add_file_req).await{
-                    Ok(res)=>res.unwrap(),
-                    Err(err)=>{
-                        panic!("初始化文件上传请求失败: {:?}", err)
-                    }
-                };
-                break;
-            }
-            if create_index>5 {
-                break;
-            }
-            sleep(Duration::from_millis(10000)).await;
-            create_index+=1;
-        }
         // debug!("上传完成，文件Cid为:{}",call_back_res.data[0].fileCid);
         Ok(())
     }
@@ -787,6 +689,10 @@ impl DavFileSystem for WebdavDriveFileSystem {
                 FastDavFile::new(self.clone(), file, parent_file.id,parent_path.to_path_buf(),options.size.unwrap_or_default(),sha1.clone())
             } else if options.write && (options.create || options.create_new) {
 
+               
+                if parent_file.id=="0" && parent_path.clone().to_path_buf().to_string_lossy()=="/"{
+                    panic!("无法上传文件到根目录")
+                }
 
                 let size = options.size;
                 let name = dav_path
@@ -812,10 +718,9 @@ impl DavFileSystem for WebdavDriveFileSystem {
                 };
 
                 let parent_folder_id = parent_file.id.clone();
-
                 let file = WebdavFile {
                     id: "0".to_string(),
-                    provider:None,
+                    provider:parent_file.provider,
                     kind:0,
                     name: name,
                     parent_id: parent_folder_id,
@@ -855,8 +760,6 @@ impl DavFileSystem for WebdavDriveFileSystem {
         }
         .boxed()
     }
-
-   
 
 
     fn create_dir<'a>(&'a self, dav_path: &'a DavPath) -> FsFuture<()> {
@@ -1203,14 +1106,8 @@ impl FastDavFile {
                 let hash = &self.file.clone().sha1.unwrap();
                 let res: std::result::Result<UploadInitResponse, anyhow::Error> = self
                     .fs
-                    .create_file_with_proof(&self.file.name, &self.parent_file_id, hash, size)
+                    .create_file_with_proof(&self.file.clone().provider.unwrap(),&self.file.name, &self.parent_file_id, hash, size)
                     .await;
-
-                let upload_buffer_size = self.fs.upload_buffer_size as u64;
-                let chunk_count = size / upload_buffer_size + if size % upload_buffer_size != 0 { 1 } else { 0 };
-                self.upload_state.chunk_count = chunk_count;
-               
-
 
                 let upload_response = match res {
                     Ok(upload_response_info) => upload_response_info,
@@ -1220,9 +1117,19 @@ impl FastDavFile {
                     }
                 };
 
+                if upload_response.code != 200 as u64 {
+                    error!(file_name = %self.file.name, error = upload_response.message);
+                    return Ok(false);
+                }
+
+                let upload_buffer_size = self.fs.upload_buffer_size as u64;
+                let chunk_count = size / upload_buffer_size + if size % upload_buffer_size != 0 { 1 } else { 0 };
+                self.upload_state.chunk_count = chunk_count;
+               
+
                 let oss_args: OssArgs = OssArgs {
-                    uploader:upload_response.data.uploadEp,
-                    hash:upload_response.data.fileHash,
+                    uploader:upload_response.data.uploader,
+                    hash:upload_response.data.fileSha1,
                     chunkSize:upload_response.data.chunkSize,
                 };
 

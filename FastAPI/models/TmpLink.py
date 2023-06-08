@@ -77,6 +77,12 @@ class TmpLink():
         else:
             download_expires_url=f"{download_url}?x-oss-expires={expires_timestamp_sec}"
         return download_expires_url
+    
+    #初始化文件上传，如果不需要的话根据需要自己构造返回的InitUploadResponse
+    def init_upload(self,init_file:InitUploadRequest):
+        init_data = InitResponseData(uploader=f"http://127.0.0.1/{self.provider}/upload",fileName=init_file.name,fileSize=init_file.size,fileSha1=init_file.sha1,chunkSize=16777216)
+        response = InitUploadResponse(code=101,message="文件已经上传",data=init_data)
+        return response
 
     # 以下都是辅助方法
     def getToken(self):

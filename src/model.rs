@@ -209,16 +209,11 @@ pub struct CallBackData {
 
 #[derive(Debug, Clone,Serialize, Deserialize)]
 pub struct UploadInitRequest {
-    pub hash: String,
-    pub fileHash: String,
-    pub fileName: String,
-    pub fileSize: u64,
-    pub fileCid: String,
-    pub fileState:u64,
-    pub parentId: String,
-    pub chunkSize: u64,
-    pub suffix:String,
-    pub partList:Vec<Value>,
+    pub provider: String,
+    pub name: String,
+    pub parent_file_id: String,
+    pub sha1: String,
+    pub size: u64,
 }
 
 
@@ -227,24 +222,19 @@ pub struct UploadInitRequest {
 pub struct UploadInitResponse {
     pub code: u64,
     pub message: String,
-    pub submessage: String,
     pub data: InitResponseData,
-    pub rsptime: u64,
 }
 
 
 #[derive(Debug, Clone,Serialize, Deserialize)]
 pub struct InitResponseData {
-    pub uploadEp: String,
+    pub uploader: String,
     pub fileName: String,
     pub fileSize: u64,
-    pub fileMimeType: String,
-    pub fileExtension: String,
     pub chunkSize: u64,
-    pub fileHash: String,
-    pub fileCid: String,
-    pub uploadState:u64,
+    pub fileSha1: String,
 }
+
 
 #[derive(Debug, Clone,Serialize, Deserialize)]
 pub struct ObjProvider {

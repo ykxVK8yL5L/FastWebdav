@@ -249,6 +249,7 @@ impl WebdavDriveFileSystem {
             let files:Vec<WebdavFile> = match self.get_request(list_url, &req).await{
                 Ok(res)=>res.unwrap(),
                 Err(err)=>{
+                    error!("文件列表请求失败: {:?}", err);
                     panic!("文件列表请求失败: {:?}", err)
                 }
             };
@@ -257,6 +258,7 @@ impl WebdavDriveFileSystem {
             let parent_file = match self.get_by_path(&path_str).await{
                 Ok(res)=>res.unwrap(),
                 Err(err)=>{
+                    error!("文件列表请求失败: {:?}", err);
                     panic!("文件列表请求失败: {:?}", err)
                 }
             };
@@ -264,6 +266,7 @@ impl WebdavDriveFileSystem {
             let files:Vec<WebdavFile> = match self.post_request(list_url, &req).await{
                 Ok(res)=>res.unwrap(),
                 Err(err)=>{
+                    error!("文件列表请求失败: {:?}", err);
                     panic!("文件列表请求失败: {:?}", err)
                 }
             };
@@ -462,6 +465,7 @@ impl WebdavDriveFileSystem {
         let donwload_url:String = match self.post_request(download_url, &davfile).await{
             Ok(res)=>res.unwrap(),
             Err(err)=>{
+                error!("文件下载地址获取失败: {:?}", err);
                 panic!("文件下载地址获取失败: {:?}", err)
             }
         };
@@ -500,6 +504,7 @@ impl WebdavDriveFileSystem {
         let file_upload_init_res:UploadInitResponse = match  self.post_request(init_upload_url,&init_file_req).await{
             Ok(res)=>res.unwrap(),
             Err(err)=>{
+                error!("初始化文件上传请求失败: {:?}", err);
                 panic!("初始化文件上传请求失败: {:?}", err)
             }
         };
@@ -509,6 +514,7 @@ impl WebdavDriveFileSystem {
        debug!("输出创建文件信息结束");
 
        if file_upload_init_res.code != 200 as u64 {
+           error!("{}",&file_upload_init_res.message);
            panic!("{}",&file_upload_init_res.message);
        }
 
@@ -542,11 +548,13 @@ impl WebdavDriveFileSystem {
         let slice_upload_res:SliceUploadResponse = match self.post_body_request(uploader_url,form).await {
             Ok(res)=>res.unwrap(),
             Err(err)=>{
+                error!("文件分片上传失败: {:?}", err);
                 panic!("文件分片上传失败: {:?}", err)
             }
         };
 
         if slice_upload_res.code!=200 as u64 {
+            error!("文件分片上传失败: {}", slice_upload_res.message);
             panic!("文件分片上传失败: {}", slice_upload_res.message)
         }
 
@@ -565,12 +573,14 @@ impl WebdavDriveFileSystem {
         let complete_uplad_res:CompleteUploadResponse = match self.post_request(complete_url, &complete_upload_req).await {
             Ok(res) => res.unwrap(),
             Err(err)  => {
+                error!("文件分片上传失败: {:?}", err);
                 panic!("文件分片上传失败: {:?}", err)
             }
         };
 
         if complete_uplad_res.status != 200 as u64{
-            panic!("文件分片上传失败: {}", complete_uplad_res.data)
+            error!("文件分片上传失败: {}", complete_uplad_res.data);
+            panic!("文件分片上传失败: {}", complete_uplad_res.data);
         }
 
         Ok(())
@@ -636,6 +646,7 @@ impl DavFileSystem for WebdavDriveFileSystem {
 
                
                 if parent_file.id=="0" && parent_path.clone().to_path_buf().to_string_lossy()=="/"{
+                    error!("无法上传文件到根目录");
                     panic!("无法上传文件到根目录")
                 }
 

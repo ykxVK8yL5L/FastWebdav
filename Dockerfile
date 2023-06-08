@@ -17,7 +17,8 @@ RUN pip wheel -r /tmp/requirements.txt --wheel-dir /tmp/wheels
 FROM python:${PYTHON_VER}-${PYTHON_IMG_TYPE}
 COPY --from=builder /tmp/wheels/* /tmp/wheels/
 RUN pip install /tmp/wheels/*.whl && rm -rf /tmp
-
+ARG TARGETARCH
+ARG TARGETVARIANT
 COPY ./FastAPI /root
 VOLUME /root/configs/
 COPY entrypoint.sh /entrypoint.sh

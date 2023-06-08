@@ -1,10 +1,14 @@
 import os, sys
+from typing import Annotated
 from datetime import datetime
 import configparser
-from fastapi import FastAPI,APIRouter,Request,Query,Path
+from fastapi import FastAPI,APIRouter,Request,Query,Path,Request,File,Form
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import parse_obj_as
 from models import *
 from schemas.schemas import *
+import json
+import base64
 
 #app = FastAPI(docs_url=None, redoc_url=None)
 app = FastAPI(title='FastWebdav的API',description='为webdav提供数据支持', redoc_url=None)
@@ -56,7 +60,23 @@ def create_provider_router(name):
         返回创建文件的响应，具体看schemas.初始化文件分片上传，通常是向服务器请求创建文件返回一个上传地址分片大小等信息，由于各个服务需要不一样，不一定全部可用，不断完善吧
         '''
         return provider.init_upload(init_file)
+    
+    @router.post("/upload_chunk")
+    async def upload_chunk(filedata: Annotated[bytes, File()],slice_req: Annotated[str, Form()])-> SliceUploadResponse:
+        '''
+        文件分片上传
+        '''
+        json_str = base64.b64decode(slice_req).decode('utf-8')
+        slice_req_obj = parse_obj_as(SliceUploadRequest, json.loads(json_str))
+        return provider.upload_chunk(slice_req_obj,filedata)
+    
 
+    @router.post("/complete_upload")
+    async def complete_upload(complete_req:CompleteUploadRequest)-> CompleteUploadResponse:
+        '''
+        文件分片上传
+        '''
+        return provider.complete_upload(complete_req)
 
 
     return router

@@ -222,6 +222,7 @@ pub struct UploadInitRequest {
 pub struct UploadInitResponse {
     pub code: u64,
     pub message: String,
+    pub extra: Option<String>,
     pub data: InitResponseData,
 }
 
@@ -244,8 +245,10 @@ pub struct ObjProvider {
 #[derive(Debug, Clone,Serialize, Deserialize)]
 pub struct OssArgs {
     pub uploader:String,
-    pub hash:String,
+    pub sha1:String,
     pub chunkSize:u64,
+    pub extra_int:Option<String>,
+    pub extra_last:Option<String>,
 }
 
 
@@ -290,39 +293,39 @@ pub struct AddFileResponse {
 
 #[derive(Debug, Clone,Serialize, Deserialize)]
 pub struct CompleteUploadRequest {
-    pub appEnv: String,
-    pub fileName: String,
-    pub fileHash: String,
-    pub passThrough: String,
-    pub noCallback: bool,
+    pub file: WebdavFile,
+    pub oss_args: OssArgs,
+    pub upload_tags: String,
+    pub upload_id: String,
 }
+
+#[derive(Debug, Clone,Serialize, Deserialize)]
+pub struct SliceUploadRequest {
+    pub file:WebdavFile,
+    pub oss_args:OssArgs,
+    pub upload_id:String,
+    pub current_chunk:u64,
+}
+
 
 
 #[derive(Debug, Clone,Serialize, Deserialize)]
 pub struct SliceUploadResponse {
     pub code: u64,
     pub message: String,
-    pub submessage: String,
+    pub extra: Option<String>,
     pub data: FileUploadInfo,
-    pub rsptime: u64,
 }
 
 
 #[derive(Debug, Clone,Serialize, Deserialize)]
 pub struct FileUploadInfo {
-    pub uploadEp: String,
     pub fileName: String,
     pub fileSize: u64,
-    pub chunkSize: u64,
-    pub uploadChunks: Vec<PartInfo>,
-    pub fileCid: String,
-    pub thumbnailCid: String,
-    pub coverCid: String,
-    pub uploadState: u64,
-    pub fileMimeType: String,
-    pub fileExtension: String,
     pub fileHash: String,
-    pub queueExpireTs: u64,
+    pub chunkIndex: u64,
+    pub chunkSize: u64,
+    pub uploadState: u64,
 }
 
 #[derive(Debug, Clone,Serialize, Deserialize)]

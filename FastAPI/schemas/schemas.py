@@ -56,7 +56,81 @@ class InitUploadResponse(BaseModel):
     '''
     code:int = Field(title="上传响应的状态码",description="目前webdav没有做过多状态处理，只有200成功，如果要显示信息在message里设置")
     message:str = Field(title="上传响应的信息提示",description="一般是错误提示，如果状态码不是200才显示") 
+    extra:Optional[str] = Field(title="传递一些额外参数",description="传递一些额外参数，处理不同服务器需要的信息最好是base64加密字符串") 
     data:Union[InitResponseData, None] = Field(title="上传响应的数据",description="上传响应的数据") 
     class Config:
         title = "InitUploadResponse:初始化文件上传响应信息"
- 
+
+
+class OssArgs(BaseModel):
+    '''
+    OssArgs也不太清楚是啥，就是把上传请求获得到的信息缓存起来给其它函数调用，需要根据需求来不断完善，先这样
+    '''
+    uploader:str = Field(title="分片上传网址",description="分片上传网址") 
+    sha1:str = Field(title="文件sha1做上传ID用",description="文件sha1做上传ID用") 
+    chunkSize:int = Field(title="文件分片大小",description="文件分片大小") 
+    extra_init:Optional[str] = Field(title="文件sha1做上传ID用",description="文件sha1做上传ID用") 
+    extra_last:Optional[str] = Field(title="文件sha1做上传ID用",description="文件sha1做上传ID用") 
+    class Config:
+        title = "OssArgs:上传响应信息缓存"
+
+
+class SliceUploadRequest(BaseModel):
+    '''
+    分片上传请求
+    '''
+    dav_file:Union[DavFile, None] = Field(title="分片的文件信息",description="分片的文件信息",alias='file') 
+    oss_args:Union[OssArgs, None] = Field(title="分片的缓存信息",description="分片的缓存信息")
+    upload_id:str = Field(title="上传ID",description="上传ID，应该是oss_args的sha1") 
+    current_chunk:int = Field(title="当前上传的index",description="当前上传的index,注意从1开始") 
+    class Config:
+        title = "SliceUploadRequest:分片上传请求"
+
+
+class FileUploadInfo(BaseModel):
+    '''
+    分片上传响应数据
+    '''
+    fileName:str = Field(title="文件名",description="文件名")
+    fileSize:int = Field(title="文件大小",description="文件大小") 
+    fileHash:str = Field(title="文件sha1",description="文件sha1")
+    chunkIndex:int = Field(title="上传索引",description="上传索引，相当于上传请求的current_chunk，但不同服务响应不同，可能需要特殊处理") 
+    chunkSize:int = Field(title="分片大小",description="分片大小")
+    uploadState:int = Field(title="上传状态",description="上传状态") 
+    class Config:
+        title = "FileUploadInfo:分片上传响应数据"
+
+
+class SliceUploadResponse(BaseModel):
+    '''
+    分片上传响应
+    '''
+    code:int = Field(title="分片上传响应的状态码",description="目前webdav没有做过多状态处理，只有200成功，如果要显示信息在message里设置")
+    message:str = Field(title="分片上传响应的信息提示",description="一般是错误提示，如果状态码不是200才显示") 
+    extra:Optional[str] = Field(title="传递一些额外参数",description="传递一些额外参数，处理不同服务器需要的信息最好是base64加密字符串") 
+    data:Union[FileUploadInfo, None] = Field(title="分片上传响应的数据",description="分片上传响应的数据") 
+    class Config:
+        title = "SliceUploadResponse:分片上传响应"
+
+
+class CompleteUploadRequest(BaseModel):
+    '''
+    最后完成上传的请求
+    '''
+    dav_file:Union[DavFile, None] = Field(title="分片的文件信息",description="分片的文件信息",alias='file') 
+    oss_args:Union[OssArgs, None] = Field(title="分片的缓存信息",description="分片的缓存信息")
+    upload_id:str = Field(title="上传ID",description="上传ID，应该是oss_args的sha1") 
+    upload_tags:str = Field(title="上传tag",description="上传tag,一般没用") 
+    class Config:
+        title = "CompleteUploadRequest:完成上传的请求"
+
+
+class CompleteUploadResponse(BaseModel):
+    '''
+    完成上传响应
+    '''
+    status:int = Field(title="上传响应的状态码",description="目前webdav没有做过多状态处理，只有200成功，如果要显示信息在data里设置")
+    data:str = Field(title="上传响应的信息提示",description="一般是错误提示，如果状态码不是200才显示") 
+    class Config:
+        title = "CompleteUploadResponse:完成上传响应"
+

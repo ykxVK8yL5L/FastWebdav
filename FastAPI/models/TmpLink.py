@@ -3,6 +3,7 @@ import time
 import re
 import math
 from cachelib import SimpleCache
+from fastapi import Request
 import os
 import sys
 sys.path.append(os.path.abspath('../'))
@@ -78,11 +79,23 @@ class TmpLink():
             download_expires_url=f"{download_url}?x-oss-expires={expires_timestamp_sec}"
         return download_expires_url
     
-    #初始化文件上传，如果不需要的话根据需要自己构造返回的InitUploadResponse
+    # 初始化文件上传，如果不需要的话根据需要自己构造返回的InitUploadResponse
     def init_upload(self,init_file:InitUploadRequest):
         init_data = InitResponseData(uploader=f"http://127.0.0.1/{self.provider}/upload",fileName=init_file.name,fileSize=init_file.size,fileSha1=init_file.sha1,chunkSize=16777216)
-        response = InitUploadResponse(code=101,message="文件已经上传",data=init_data)
+        response = InitUploadResponse(code=200,message="文件已经上传",data=init_data)
         return response
+
+    # 文件分片上传
+    def upload_chunk(self,slice_req:SliceUploadRequest,filedata:bytes):
+        upload_data = FileUploadInfo(fileName=slice_req.dav_file.name,fileSize=slice_req.dav_file.size,fileHash=slice_req.dav_file.sha1,chunkIndex=slice_req.current_chunk,chunkSize=slice_req.oss_args.chunkSize,uploadState=0)
+        response = SliceUploadResponse(code=200,message="稍后实现", data=upload_data)
+        return response
+    
+    # 分片上传完成后的处理
+    def complete_upload(self,complete_req:CompleteUploadRequest):
+        response = CompleteUploadResponse(status=101,data="稍后实现")
+        return response
+
 
     # 以下都是辅助方法
     def getToken(self):

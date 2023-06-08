@@ -8,9 +8,10 @@ use std::time::{Duration,SystemTime, UNIX_EPOCH};
 use reqwest::multipart::{Form, Part};
 use tracing_subscriber::fmt::format;
 use url::Url;
+use base64::{encode, decode};
 use md5::{Md5, Digest as MDigest};
 use sha1::{Sha1, Digest};
-use anyhow::{Result, Context};
+use anyhow::{Result, Context, Error};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use dashmap::DashMap;
 use futures_util::future::{ready, ok, FutureExt};
@@ -156,6 +157,36 @@ impl WebdavDriveFileSystem {
             .client
             .post(url.clone())
             .json(&req)
+            .send()
+            .await?
+            .error_for_status();
+        match res {
+            Ok(res) => {
+                if res.status() == StatusCode::NO_CONTENT {
+                    return Ok(None);
+                }
+                //let res = res.json::<U>().await?;
+                let res = res.text().await?;
+                //println!("{}: {}", url, res);
+                let res = serde_json::from_str(&res)?;
+                // let res_obj = res.json::<U>().await?;
+                Ok(Some(res))
+            }
+            Err(err) => {
+                Err(err.into())
+            }
+        }
+    }
+
+
+    async fn post_body_request<U>(&self, url: String, form:Form) -> Result<Option<U>>
+    where
+        U: DeserializeOwned,
+    {
+        let res = self
+            .client
+            .post(url.clone())
+            .multipart(form)
             .send()
             .await?
             .error_for_status();
@@ -489,145 +520,59 @@ impl WebdavDriveFileSystem {
 
 
     pub async fn get_pre_upload_info(&self,oss_args:&OssArgs) -> Result<String> {
-        Ok(oss_args.hash.clone())
+        Ok(oss_args.sha1.clone())
     }
 
     pub async fn upload_chunk(&self, file:&WebdavFile, oss_args:&OssArgs, upload_id:&str, current_chunk:u64,body: Bytes) -> Result<(SliceUploadResponse)> {
         debug!(file_name=%file.name,upload_id = upload_id,current_chunk=current_chunk, "upload_chunk");
-        let hash_str = get_file_sha1(body.clone());
-        let chunk_index = current_chunk-1;
-        let mut upload_chunk_size = oss_args.chunkSize;
-        let body_size = body.clone().len() as u64;
-        if body_size<oss_args.chunkSize {
-            upload_chunk_size = body_size;
-        }
-
-        let uploader_url = format!("{}/v2/file/chunk/upload-binary?fileHash={}&chunkIndex={}&chunkHash={}&chunkSize={}",oss_args.uploader,oss_args.hash,chunk_index,hash_str,upload_chunk_size);
-        debug!("文件上传网址:{}",uploader_url);
-
-        let url = Url::parse(&uploader_url).unwrap();
-        let host = url.host_str().unwrap();
-        let port = url.port_or_known_default().unwrap();
-        let host_str = format!("{}:{}",host,port);
-  
-
-        let client = reqwest::Client::builder()
-        .build()?;
-
-        let mut headers = reqwest::header::HeaderMap::new();
-        headers.insert("Host", host_str.parse()?);
-        headers.insert("Accept", "application/json, text/plain, */*".parse()?);
-        headers.insert("Custom-Agent", "PC".parse()?);
-        headers.insert("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) xiaolongyunpan/3.2.7 Chrome/100.0.4896.143 Electron/18.2.0 Safari/537.36".parse()?);
-        headers.insert("Content-Type", "text/plain".parse()?);
-        headers.insert("Accept-Language", "zh-CN".parse()?);
-
-
-        //let data = reqwest::Body::from(binary);
-        let response = client.request(reqwest::Method::POST, &uploader_url)
-        .headers(headers)
-        .body(body)
-        .send().await?;
-
-        let detail = response
-        .text()
-        .await
-        .unwrap_or_else(|_| "unknown error".to_string());
-    
-        debug!("上传结果{}",&detail);
-        let slice_upload_res:SliceUploadResponse = match serde_json::from_str(&detail) {
-            Ok(res)=>res,
+        let upload_req = SliceUploadRequest{
+            file:file.clone(),
+            oss_args:oss_args.clone(),
+            upload_id:upload_id.to_string(),
+            current_chunk:current_chunk
+        };
+        let req_str = serde_json::to_string(&upload_req).unwrap();
+        let json_base_str = encode(req_str);
+        //let json: serde_json::Value = serde_json::from_str(&req_str)?;
+        let uploader_url = format!("{}{}/upload_chunk",API_URL,file.clone().provider.unwrap());
+        let formfiledata: Part = Part::bytes(body.to_vec()).file_name("slice");
+        let form = reqwest::multipart::Form::new()
+            .part("filedata",formfiledata)
+            .text("slice_req", json_base_str);
+        let slice_upload_res:SliceUploadResponse = match self.post_body_request(uploader_url,form).await {
+            Ok(res)=>res.unwrap(),
             Err(err)=>{
                 panic!("文件分片上传失败: {:?}", err)
             }
         };
+
+        if slice_upload_res.code!=200 as u64 {
+            panic!("文件分片上传失败: {}", slice_upload_res.message)
+        }
+
         Ok(slice_upload_res)
     }
 
 
     pub async fn complete_upload(&self,file:&WebdavFile, upload_tags:String, oss_args:&OssArgs, upload_id:&str)-> Result<()> {
-        let file_type = get_file_type(&file.name);
-        let pass_through = format!("{{\"dirPath\":[],\"duration\":1,\"parentId\":\"{}\",\"fileType\":{},\"width\":\"0\",\"height\":\"0\"}}",&file.parent_id,&file_type);
-        let is_callback = if file_type == 3 {
-            false 
-        } else {
-            true
+        let complete_upload_req: CompleteUploadRequest = CompleteUploadRequest{
+            file:file.clone(),
+            oss_args:oss_args.clone(),
+            upload_tags:upload_tags,
+            upload_id:upload_id.to_string(),
         };
-        let complete_upload_req=CompleteUploadRequest{
-            appEnv:"prod".to_string(),
-            fileName:format!("{}",&file.name),
-            fileHash:format!("{}",&file.clone().sha1.unwrap()),
-            passThrough:pass_through,
-            noCallback:true,
-        };
-        let complete_upload_url = format!("{}/v2/file/chunk/splice",oss_args.uploader);
-        let slice_upload_res:SliceUploadResponse = match self.post_request(complete_upload_url, &complete_upload_req).await {
-            Ok(res)=>res.unwrap(),
-            Err(err)=>{
-                panic!("Slice文件上传失败: {:?}", err)
+        let complete_url = format!("{}{}/complete_upload",API_URL,file.clone().provider.unwrap());
+        let complete_uplad_res:CompleteUploadResponse = match self.post_request(complete_url, &complete_upload_req).await {
+            Ok(res) => res.unwrap(),
+            Err(err)  => {
+                panic!("文件分片上传失败: {:?}", err)
             }
         };
-        
-        ///开始查询上传结果一直循环直到结果uploadState==1
-        let result_url = "http://uploadapi2.stariverpan.com:18090/v2/file/result";
-        let result_req = ResultRequest{
-            fileHash:slice_upload_res.clone().data.fileHash,
-        };
-        ///Result循环请求3次退出
-        let mut loop_index=1;
-        loop {
-            let result_res:SliceUploadResponse = match self.post_request(result_url.clone().to_string(), &result_req).await {
-                Ok(res)=>res.unwrap(),
-                Err(err)=>{
-                    panic!("文件上传结果查询失败: {:?}", err)
-                }
-            };
-            if result_res.data.uploadState==1 || loop_index>2{
-                break;
-            }
-            sleep(Duration::from_millis(6000)).await;
-            loop_index+=1;
+
+        if complete_uplad_res.status != 200 as u64{
+            panic!("文件分片上传失败: {}", complete_uplad_res.data)
         }
 
-        // let result_res:SliceUploadResponse = match self.post_request(result_url.clone().to_string(), &result_req).await {
-        //     Ok(res)=>res.unwrap(),
-        //     Err(err)=>{
-        //         panic!("第一次文件上传结果查询失败: {:?}", err)
-        //     }
-        // };
-
-
-        // let result2_res:SliceUploadResponse = match self.post_request(result_url.clone().to_string(), &result_req).await {
-        //     Ok(res)=>res.unwrap(),
-        //     Err(err)=>{
-        //         panic!("第二次文件上传结果查询失败: {:?}", err)
-        //     }
-        // };
-       
-
-        let call_back_req = CallbackRequest{
-            fileHashs:vec![slice_upload_res.data.fileHash],
-        };
-        let call_back_url = "http://uploadapi2.stariverpan.com:18090/v2/file/callbacks";
-        //循环请求3次退出
-        let mut callback_index=1;
-        loop {
-            debug!("Callback第{}次结果",&callback_index);
-            let call_back_res:CallbackResponse = match self.post_request(call_back_url.clone().to_string(), &call_back_req).await {
-                Ok(res)=>res.unwrap(),
-                Err(err)=>{
-                    panic!("Complete文件上传失败: {:?}", err)
-                }
-            };
-            debug!("上传完成，文件Cid为:{}",call_back_res.data[0].fileCid);
-            if call_back_res.data[0].fileCid.len() >54 || callback_index>2 {
-                break;
-            }
-            sleep(Duration::from_millis(4000)).await;
-            callback_index+=1;
-        }
-
-        // debug!("上传完成，文件Cid为:{}",call_back_res.data[0].fileCid);
         Ok(())
     }
 
@@ -1109,7 +1054,7 @@ impl FastDavFile {
                     .create_file_with_proof(&self.file.clone().provider.unwrap(),&self.file.name, &self.parent_file_id, hash, size)
                     .await;
 
-                let upload_response = match res {
+                let upload_response: UploadInitResponse = match res {
                     Ok(upload_response_info) => upload_response_info,
                     Err(err) => {
                         error!(file_name = %self.file.name, error = %err, "create file with proof failed");
@@ -1127,10 +1072,25 @@ impl FastDavFile {
                 self.upload_state.chunk_count = chunk_count;
                
 
-                let oss_args: OssArgs = OssArgs {
-                    uploader:upload_response.data.uploader,
-                    hash:upload_response.data.fileSha1,
-                    chunkSize:upload_response.data.chunkSize,
+                let oss_args: OssArgs = match upload_response.extra {
+                    Some(res)=>{
+                        OssArgs {
+                            uploader:upload_response.data.uploader,
+                            sha1:upload_response.data.fileSha1,
+                            chunkSize:upload_response.data.chunkSize,
+                            extra_int:Some(res),
+                            extra_last:None
+                        }
+                    },
+                    None=>{
+                        OssArgs {
+                            uploader:upload_response.data.uploader,
+                            sha1:upload_response.data.fileSha1,
+                            chunkSize:upload_response.data.chunkSize,
+                            extra_int:None,
+                            extra_last:None
+                        }
+                    }
                 };
 
                 self.upload_state.oss_args = Some(oss_args);
@@ -1180,14 +1140,14 @@ impl FastDavFile {
                 self.upload_state.chunk_count
             );
             let upload_data = chunk_data.freeze();
-            let oss_args = match self.upload_state.oss_args.as_ref() {
+            let mut oss_args = match self.upload_state.oss_args.clone() {
                 Some(oss_args) => oss_args,
                 None => {
                     error!(file_name = %self.file.name, "获取文件上传信息错误");
                     return Err(FsError::GeneralFailure);
                 }
             };
-            let res = self.fs.upload_chunk(&self.file,oss_args,&self.upload_state.upload_id,current_chunk,upload_data.clone()).await;
+            let res = self.fs.upload_chunk(&self.file,&oss_args,&self.upload_state.upload_id,current_chunk,upload_data.clone()).await;
             
             let part = match res {
                 Ok(part) => part,
@@ -1196,6 +1156,18 @@ impl FastDavFile {
                     return Err(FsError::GeneralFailure);
                 }
             };
+
+            
+            self.upload_state.oss_args = match part.clone().extra {
+                Some(res) => {
+                    let mut t = oss_args.clone();
+                    t.extra_last = Some(res);
+                    Some(t)
+                },
+                None=>(Some(oss_args.clone()))
+            };
+
+
             println!("文件上传结果:{:?}",part);
             debug!(chunk_count = %self.upload_state.chunk_count, current_chunk=current_chunk, "upload chunk info");
             if current_chunk == self.upload_state.chunk_count{
@@ -1204,7 +1176,7 @@ impl FastDavFile {
                 let mut ser = XmlSerializer::with_root(Writer::new_with_indent(&mut buffer, b' ', 4), Some("CompleteMultipartUpload"));
                 //self.upload_state.upload_tags.serialize(&mut ser).unwrap();
                 let upload_tags = String::from_utf8(buffer).unwrap();
-                self.fs.complete_upload(&self.file,upload_tags,oss_args,&self.upload_state.upload_id).await;
+                self.fs.complete_upload(&self.file,upload_tags,&oss_args,&self.upload_state.upload_id).await;
                 self.upload_state = UploadState::default();
                 // self.upload_state.buffer.clear();
                 // self.upload_state.chunk = 0;

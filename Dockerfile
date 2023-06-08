@@ -19,6 +19,12 @@ COPY --from=builder /tmp/wheels/* /tmp/wheels/
 RUN pip install /tmp/wheels/*.whl && rm -rf /tmp
 ARG TARGETARCH
 ARG TARGETVARIANT
+RUN apk --no-cache add ca-certificates tini
+RUN apk add tzdata && \
+	cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+	echo "Asia/Shanghai" > /etc/timezone && \
+	apk del tzdata
+    
 COPY ./FastAPI /root
 VOLUME /root/configs/
 COPY entrypoint.sh /entrypoint.sh

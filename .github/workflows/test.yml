@@ -87,18 +87,6 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/download-artifact@v2
         with:
-          name: x86_64-unknown-linux-musl-bin
-      - run: |
-          chmod a+x fast-webdav
-          mv fast-webdav fast-webdav-amd64
-      - uses: actions/download-artifact@v2
-        with:
-          name: i686-unknown-linux-musl-bin
-      - run: |
-          chmod a+x fast-webdav
-          mv fast-webdav fast-webdav-386
-      - uses: actions/download-artifact@v2
-        with:
           name: aarch64-unknown-linux-musl-bin
       - run: |
           chmod a+x fast-webdav

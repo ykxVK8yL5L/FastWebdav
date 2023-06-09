@@ -92,9 +92,9 @@ impl WebdavDriveFileSystem {
 
         let client = reqwest::Client::builder()
             .default_headers(headers)
-            .pool_idle_timeout(Duration::from_secs(50))
-            .connect_timeout(Duration::from_secs(10))
-            .timeout(Duration::from_secs(30))
+            .pool_idle_timeout(Duration::from_secs(300))
+            .connect_timeout(Duration::from_secs(300))
+            .timeout(Duration::from_secs(300))
             .build()?;
 
 
@@ -540,11 +540,12 @@ impl WebdavDriveFileSystem {
         let req_str = serde_json::to_string(&upload_req).unwrap();
         let json_base_str = encode(req_str);
         //let json: serde_json::Value = serde_json::from_str(&req_str)?;
-        let uploader_url = format!("{}{}/upload_chunk",API_URL,file.clone().provider.unwrap());
         let formfiledata: Part = Part::bytes(body.to_vec()).file_name("slice");
         let form = reqwest::multipart::Form::new()
             .part("filedata",formfiledata)
             .text("slice_req", json_base_str);
+
+        let uploader_url = format!("{}{}/upload_chunk",API_URL,file.clone().provider.unwrap());
         let slice_upload_res:SliceUploadResponse = match self.post_body_request(uploader_url,form).await {
             Ok(res)=>res.unwrap(),
             Err(err)=>{
@@ -569,6 +570,14 @@ impl WebdavDriveFileSystem {
             upload_tags:upload_tags,
             upload_id:upload_id.to_string(),
         };
+
+        //由于fastapi模型转换问题只好用form把json字符串提交过去再解析了
+        // let req_str = serde_json::to_string(&complete_upload_req).unwrap();
+        // let json_base_str = encode(req_str);
+        // //let json_complete: serde_json::Value = serde_json::from_str(&req_str)?;
+        // let form = reqwest::multipart::Form::new()
+        //     .text("complete_req", json_base_str);
+
         let complete_url = format!("{}{}/complete_upload",API_URL,file.clone().provider.unwrap());
         let complete_uplad_res:CompleteUploadResponse = match self.post_request(complete_url, &complete_upload_req).await {
             Ok(res) => res.unwrap(),
@@ -1089,7 +1098,7 @@ impl FastDavFile {
                             uploader:upload_response.data.uploader,
                             sha1:upload_response.data.fileSha1,
                             chunkSize:upload_response.data.chunkSize,
-                            extra_int:Some(res),
+                            extra_init:Some(res),
                             extra_last:None
                         }
                     },
@@ -1098,7 +1107,7 @@ impl FastDavFile {
                             uploader:upload_response.data.uploader,
                             sha1:upload_response.data.fileSha1,
                             chunkSize:upload_response.data.chunkSize,
-                            extra_int:None,
+                            extra_init:None,
                             extra_last:None
                         }
                     }

@@ -69,7 +69,7 @@ def create_provider_router(name):
         json_str = base64.b64decode(slice_req).decode('utf-8')
         slice_req_obj = parse_obj_as(SliceUploadRequest, json.loads(json_str))
         return provider.upload_chunk(slice_req_obj,filedata)
-    
+
 
     @router.post("/complete_upload")
     async def complete_upload(complete_req:CompleteUploadRequest)-> CompleteUploadResponse:

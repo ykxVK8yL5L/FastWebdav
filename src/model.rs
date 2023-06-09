@@ -247,7 +247,7 @@ pub struct OssArgs {
     pub uploader:String,
     pub sha1:String,
     pub chunkSize:u64,
-    pub extra_int:Option<String>,
+    pub extra_init:Option<String>,
     pub extra_last:Option<String>,
 }
 

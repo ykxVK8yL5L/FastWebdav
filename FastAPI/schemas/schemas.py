@@ -69,8 +69,8 @@ class OssArgs(BaseModel):
     uploader:str = Field(title="分片上传网址",description="分片上传网址") 
     sha1:str = Field(title="文件sha1做上传ID用",description="文件sha1做上传ID用") 
     chunkSize:int = Field(title="文件分片大小",description="文件分片大小") 
-    extra_init:Optional[str] = Field(title="文件sha1做上传ID用",description="文件sha1做上传ID用") 
-    extra_last:Optional[str] = Field(title="文件sha1做上传ID用",description="文件sha1做上传ID用") 
+    extra_init:Optional[str] = Field(title="初始化后的一些额外信息",description="初始化后的一些额外信息") 
+    extra_last:Optional[str] = Field(title="上次上传后的一些额外信息",description="上次上传后的一些额外信息") 
     class Config:
         title = "OssArgs:上传响应信息缓存"
 

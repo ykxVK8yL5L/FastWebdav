@@ -3,13 +3,15 @@ import time
 import re
 import math
 from cachelib import SimpleCache
-from fastapi import Request
+from fastapi import Request,HTTPException
 import os
 import sys
 sys.path.append(os.path.abspath('../'))
 from schemas.schemas import *
 import hashlib
 import configparser
+from urllib.parse import urlparse
+
 
 TMP_FILE_API="https://tmp-api.vx-cdn.com/api_v2/file"
 TMP_TOKEN_API="https://tmp-api.vx-cdn.com/api_v2/token"
@@ -21,8 +23,8 @@ class TmpLink():
         self.token = token
         self.uid = ''
         self.cache = SimpleCache()
-        # 防止请求过于频繁，用于请求间隔时间
-        self.sleep_time = 0.005
+        # 防止请求过于频繁，用于请求间隔时间1秒
+        self.sleep_time = 1
         # 缓存结果时间默认10分钟
         self.cache_time = 600
         # 分片大小
@@ -108,7 +110,7 @@ class TmpLink():
     def init_upload(self,init_file:InitUploadRequest):
         # 第一次请求创建文件，貌似没啥用只是提交一下
         prepare_data = {
-            "sha1":init_file.sha1,
+            "sha1":0,
             "filename": init_file.name,
             "filesize": init_file.size,
             "model": "2",
@@ -118,6 +120,7 @@ class TmpLink():
             "token": self.token,
         }
         prepare_response = requests.post(TMP_FILE_API,verify=False, headers=self.headers, data=prepare_data)
+        print(prepare_response.text)
         # 每次得到操作的验证码
         captcha = self.getToken()
         # 开始上传请求，这个是最主要操作，获取到上传的utoken 
@@ -139,17 +142,37 @@ class TmpLink():
         }
         upload_request_response = requests.post(TMP_FILE_API,verify=False, headers=self.headers, data=upload_request_data)
         result = json.loads(upload_request_response.text)
+        print(upload_request_response.text)
+        if result['status']!=1:
+            raise HTTPException(status_code=400, detail="初始化请求失败")
         init_data = InitResponseData(uploader=result['data']['uploader'],fileName=init_file.name,fileSize=init_file.size,fileSha1=init_file.sha1,chunkSize=self.slice_size)
         response = InitUploadResponse(code=200,message="文件已经上传",data=init_data,extra=result['data']['utoken'])
         return response
 
     # 文件分片上传
     def upload_chunk(self,slice_req:SliceUploadRequest,filedata:bytes):
+        parsed_url = urlparse(slice_req.oss_args.uploader)
+        host = parsed_url.hostname
+        prepare_headers = {
+            "authority": host,
+            "Host": host,
+            "accept": "application/json, text/javascript, /; q=0.01",
+            "accept-language": "zh-CN,zh;q=0.9,en;q=0.8",
+            "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+            "origin": "https://tmp.link",
+            "referer": "https://tmp.link/",
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": "macOS",
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "cross-site",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36"
+        }
         upload_url = slice_req.oss_args.uploader+"/app/upload_slice"
         # 获取准备信息 返回示例
         # {"status":3,"data":{"next":0,"total":2,"wait":2,"uploading":0,"success":0}}
         # uptoken为sha1加密：uid+file.name+file.size 但是目前官方网站有Bug
-        sha1_str = str(self.uid)+slice_req.name+slice_req.dav_file.size
+        sha1_str = str(self.uid)+slice_req.dav_file.name+slice_req.dav_file.size
         # 创建sha1对象
         sha1 = hashlib.sha1()
         # 更新字符串
@@ -158,42 +181,131 @@ class TmpLink():
         uptoken = sha1.hexdigest()
         prepare_data = {
             'token': self.token,
-            'uptoken': xxxxxxxxxxxxxxx,
-            'action': prepare,
+            'uptoken': uptoken,
+            'action': 'prepare',
             'sha1': 0,
             'filename': slice_req.dav_file.name,
-            'filesize': 38531346,
+            'filesize': slice_req.dav_file.size,
             'slice_size': self.slice_size,
             'utoken': slice_req.oss_args.extra_init,
             'mr_id': 0,
             'model': 2,
         }
-        prepare_response = requests.post(upload_url,verify=False, headers=self.headers, data=upload_request_data,files=files)
+        prepare_response = requests.post(upload_url,verify=False, headers=prepare_headers, data=prepare_data)
         prepare_info = json.loads(prepare_response.text)
+        if prepare_info['status']!=3:
+            raise HTTPException(status_code=400, detail="无法获取分片信息")
         # 获取操作验证码
         captcha = self.getToken()
         # 上传操作 返回示例
+        options_headers =  {
+            'Host': host,
+            'Accept': '*/*',
+            'Access-Control-Request-Method': 'POST',
+            'Origin': 'https://tmp.link',
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'cross-site',
+            'Sec-Fetch-Dest': 'empty',
+            'Referer': 'https://tmp.link/?tmpui_page=/app&listview=workspace',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
+        }
+        payload = {}
+        options_response = requests.options(upload_url,verify=False,headers=options_headers,data=payload)
         # {"status":5,"data":"upload slice success"}
         upload_data = {
-            "sha1": slice_req.dav_file.sha1,
+            'uptoken': uptoken,
+            "sha1": 0,
             "index": prepare_info['data']['next'],
             "action": "upload_slice",
-            "slice_size": slice_req.oss_args.slice_size,
-            "captcha": captcha,
+            "slice_size": slice_req.oss_args.chunkSize,
+            "captcha":captcha,
         }
-        files = {'filedata': ('slice', filedata)}
-        upload_response = requests.post(upload_url,verify=False, headers=self.headers, data=upload_request_data,files=files)
-        result = json.loads(upload_response.text)
-        code = 100;
-        if result['status'] == 5:
-            code=200
-        upload_data = FileUploadInfo(fileName=slice_req.dav_file.name,fileSize=slice_req.dav_file.size,fileHash=slice_req.dav_file.sha1,chunkIndex=slice_req.current_chunk,chunkSize=slice_req.oss_args.chunkSize,uploadState=result['status'])
-        response = SliceUploadResponse(code=code,message=result[data], data=upload_data)
+        upload_headers = {
+            "Host": host,
+            'Accept': '*/*',
+            "accept-language": "zh-CN,zh;q=0.9,en;q=0.8",
+            "content-type": "application/octet-stream",
+            "origin": "https://tmp.link",
+            "referer": "https://tmp.link/?tmpui_page=/app&listview=workspac",
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": "macOS",
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "cross-site",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36"
+        }
+        #upload_headers['content-type'] = 'multipart/form-data'
+        files = {'filedata': ('slice', filedata,'application/octet-stream')}
+        # if result['status']!=5:
+        #     raise HTTPException(status_code=400, detail="分片上传失败")
+        code = 200
+        data = ''
+        status = 0
+        loop_index = 1
+        while True:
+            upload_response = requests.post(upload_url,verify=False, data=upload_data,files=files)
+            result = json.loads(upload_response.text)
+            print(f"第{loop_index}次上传尝试")
+            print(upload_response.text)
+            if loop_index >5:
+                break
+            if result['status'] == 5:
+                code = 200
+                data = result['data']
+                status = result['status']
+                break
+            loop_index+=1
+            time.sleep(self.sleep_time)
+
+        upload_data = FileUploadInfo(fileName=slice_req.dav_file.name,fileSize=slice_req.dav_file.size,fileHash=slice_req.dav_file.sha1,chunkIndex=slice_req.current_chunk,chunkSize=slice_req.oss_args.chunkSize,uploadState=status)
+        response = SliceUploadResponse(code=code,message=data, data=upload_data)
         return response
     
     # 分片上传完成后的处理
     def complete_upload(self,complete_req:CompleteUploadRequest):
-        response = CompleteUploadResponse(status=101,data="稍后实现")
+        parsed_url = urlparse(complete_req.oss_args.uploader)
+        host = parsed_url.hostname
+        sha1_str = str(self.uid)+complete_req.dav_file.name+complete_req.dav_file.size
+        sha1 = hashlib.sha1()
+        sha1.update(sha1_str.encode('utf-8'))
+        uptoken = sha1.hexdigest()
+        complete_headers = {
+            "authority": host,
+            "Host": host,
+            "accept": "application/json, text/javascript, /; q=0.01",
+            "accept-language": "zh-CN,zh;q=0.9,en;q=0.8",
+            "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+            "origin": "https://tmp.link",
+            "referer": "https://tmp.link/",
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": "macOS",
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "cross-site",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36"
+        }
+        complete_url = complete_req.oss_args.uploader+"/app/upload_slice"
+        complete_data = {
+            'token': self.token,
+            'uptoken': uptoken,
+            'action': 'prepare',
+            'sha1': 0,
+            'filename': complete_req.dav_file.name,
+            'filesize': complete_req.dav_file.size,
+            'slice_size': self.slice_size,
+            'utoken': complete_req.oss_args.extra_init,
+            'mr_id': 0,
+            'model': 2,
+        }
+        complete_response = requests.post(complete_url,verify=False, headers=complete_headers, data=complete_data)
+        complete_info = json.loads(complete_response.text)
+        if complete_info['status']!=8:
+            raise HTTPException(status_code=400, detail="无法获取分片信息")
+        code = 400
+        if complete_info['status']==8:
+            code = 200
+        response = CompleteUploadResponse(status=code,data=complete_info['data'])
         return response
 
 
@@ -223,6 +335,40 @@ class TmpLink():
         return result['data']
     
     def set_user(self) -> str:
+    	# 响应示例
+  #   	{
+		#     "data": {
+		#         "uid": "xxxxxxxxx",
+		#         "lang": "cn",
+		#         "storage": 0,
+		#         "storage_used": 100000000,
+		#         "private_storage_used": 0,
+		#         "acv": "1",
+		#         "acv_dq": "0",
+		#         "group": {
+		#             "level": 1,
+		#             "storage": 0,
+		#             "highspeed": true,
+		#             "blue": true
+		#         },
+		#         "join": "2023-04-01",
+		#         "total_files": "56",
+		#         "total_filesize": "10000000000",
+		#         "total_upload": "10000000000",
+		#         "pf_confirm_delete": 0,
+		#         "pf_bulk_copy": 0,
+		#         "pf_mybg_light": 0,
+		#         "pf_mybg_dark": 0,
+		#         "pf_mybg_light_key": 0,
+		#         "pf_mybg_dark_key": 0,
+		#         "highspeed": true,
+		#         "blue": true,
+		#         "sponsor": false,
+		#         "sponsor_time": "0000-00-00"
+		#     },
+		#     "status": 1,
+		#     "debug": []
+		# }
         loop_index = 1
         token = ''
         uid = ''

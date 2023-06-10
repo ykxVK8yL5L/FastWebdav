@@ -147,6 +147,7 @@ class Stariver():
         result = json.loads(response.text)
 
         if result['code']==200:
+            self.cache.delete(f"{self.token}-files-{folderId}")
             dav_file = DavFile(id='123',parent_id=create_folder_req.parent_id,provider=create_folder_req.parend_file.provider,kind=0,name="testcreate",size=0,create_time=formatted_time)
             return dav_file
         else:
@@ -164,6 +165,7 @@ class Stariver():
         result = json.loads(response.text)
 
         if result['code']==200:
+            self.cache.delete(f"{self.token}-files-{folderId}")
             return remove_file_req.dav_file
         else:
             raise HTTPException(status_code=400, detail="无法创建文件夹")

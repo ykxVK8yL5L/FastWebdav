@@ -93,6 +93,26 @@ def create_provider_router(name):
         '''
         return provider.remove_file(remove_file_req)
 
+    @router.post("/rename_file")
+    async def rename_file(rename_file_req:RenameFileRequest)-> DavFile:
+        '''
+        文件分片上传
+        '''
+        return provider.rename_file(rename_file_req)
+    
+    @router.post("/move_file")
+    async def move_file(move_file_req:MoveFileRequest)-> DavFile:
+        '''
+        文件分片上传
+        '''
+        return provider.move_file(move_file_req)
+    
+    @router.post("/copy_file")
+    async def copy_file(copy_file_req:CopyFileRequest)-> DavFile:
+        '''
+        文件分片上传
+        '''
+        return provider.copy_file(copy_file_req)
 
     return router
 

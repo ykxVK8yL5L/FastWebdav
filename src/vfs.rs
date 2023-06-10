@@ -270,16 +270,52 @@ impl WebdavDriveFileSystem {
         Ok(())
     }
 
-    pub async fn rename_file(&self, file_id: &str, new_name: &str) -> Result<()> {
+    pub async fn rename_file(&self, file: &WebdavFile, new_name: &str) -> Result<()> {
+        let rename_req = RenameFileRequest{
+            file:file.clone(),
+            new_name:new_name,
+        };
+        let rename_url = format!("{}{}/rename_file",API_URL,file.clone().provider.unwrap()); 
+        let renamed_file:WebdavFile = match self.post_request(rename_url, &rename_req).await{
+            Ok(res)=>res.unwrap(),
+            Err(err)=>{
+                error!("重命名文件失败: {:?}", err);
+                panic!("重命名文件失败: {:?}", err)
+            }
+        };
         Ok(())
     }
 
 
-    pub async fn move_file(&self, file_id: &str, new_parent_id: &str) -> Result<()> {
+    pub async fn move_file(&self, file: &WebdavFile, new_parent_id: &str) -> Result<()> {
+        let move_req = MoveFileRequest{
+            file:file.clone(),
+            new_parent_id:new_parent_id,
+        };
+        let move_url = format!("{}{}/move_file",API_URL,file.clone().provider.unwrap()); 
+        let moved_file:WebdavFile = match self.post_request(move_url, &move_req).await{
+            Ok(res)=>res.unwrap(),
+            Err(err)=>{
+                error!("重命名文件失败: {:?}", err);
+                panic!("重命名文件失败: {:?}", err)
+            }
+        };
         Ok(())
     }
 
-    pub async fn copy_file(&self, file_id: &str, new_parent_id: &str) -> Result<()> {
+    pub async fn copy_file(&self, file: &WebdavFile, new_parent_id: &str) -> Result<()> {
+        let copy_req = CopyFileRequest{
+            file:file.clone(),
+            new_parent_id:new_parent_id,
+        };
+        let copy_url = format!("{}{}/copy_file",API_URL,file.clone().provider.unwrap()); 
+        let copyied_file:WebdavFile = match self.post_request(copy_url, &copy_req).await{
+            Ok(res)=>res.unwrap(),
+            Err(err)=>{
+                error!("重命名文件失败: {:?}", err);
+                panic!("重命名文件失败: {:?}", err)
+            }
+        };
         Ok(())
     }
 
@@ -870,6 +906,24 @@ impl DavFileSystem for WebdavDriveFileSystem {
         let to = self.normalize_dav_path(to_dav);
         debug!(from = %from.display(), to = %to.display(), "fs: rename");
         async move {
+
+
+            let parent_path = to.parent().unwrap();
+
+            let path_str = parent_path.to_string_lossy().into_owned();
+            let parent_file = match self.get_by_path(&path_str).await{
+                Ok(res)=>res.unwrap(),
+                Err(err)=>{
+                    error!("获取上级目录信息失败: {:?}", err);
+                    panic!("获取上级目录信息失败: {:?}", err)
+                }
+            };
+            if parent_file.id=="0" && parent_path.to_path_buf().to_string_lossy()=="/"{
+                error!("根目录的文件夹无法修改或删除");
+                panic!("根目录的文件夹无法修改或删除")
+            }
+
+
             let is_dir;
             if from.parent() == to.parent() {
                 // rename
@@ -884,7 +938,7 @@ impl DavFileSystem for WebdavDriveFileSystem {
                         false
                     };
                     let name = name.to_string_lossy().into_owned();
-                    self.rename_file(&file.id, &name).await;
+                    self.rename_file(&file, &name).await;
                 } else {
                     return Err(FsError::Forbidden);
                 }
@@ -904,9 +958,8 @@ impl DavFileSystem for WebdavDriveFileSystem {
                     .await?
                     .ok_or(FsError::NotFound)?;
                 let new_name = to_dav.file_name();
-                self.move_file(&file.id, &to_parent_file.id).await;
+                self.move_file(&file, &to_parent_file.id).await;
             }
-
 
             if is_dir {
                 self.dir_cache.invalidate(&from).await;
@@ -924,6 +977,22 @@ impl DavFileSystem for WebdavDriveFileSystem {
         let to = self.normalize_dav_path(to_dav);
         debug!(from = %from.display(), to = %to.display(), "fs: copy");
         async move {
+
+            let parent_path = to.parent().unwrap();
+
+            let path_str = parent_path.to_string_lossy().into_owned();
+            let parent_file = match self.get_by_path(&path_str).await{
+                Ok(res)=>res.unwrap(),
+                Err(err)=>{
+                    error!("获取上级目录信息失败: {:?}", err);
+                    panic!("获取上级目录信息失败: {:?}", err)
+                }
+            };
+            if parent_file.id=="0" && parent_path.to_path_buf().to_string_lossy()=="/"{
+                error!("根目录的文件夹无法修改或删除");
+                panic!("根目录的文件夹无法修改或删除")
+            }
+
             let file = self
                 .get_file(from.clone())
                 .await?
@@ -933,7 +1002,7 @@ impl DavFileSystem for WebdavDriveFileSystem {
                 .await?
                 .ok_or(FsError::NotFound)?;
             let new_name = to_dav.file_name();
-            self.copy_file(&file.id, &to_parent_file.id).await;
+            self.copy_file(&file, &to_parent_file.id).await;
             self.dir_cache.invalidate(&to).await;
             self.dir_cache.invalidate_parent(&to).await;
             Ok(())

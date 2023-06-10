@@ -80,18 +80,31 @@ pub struct RemoveFileRequest{
     pub file:WebdavFile,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct RenameFileRequest<'a>{
+    pub file:WebdavFile,
+    pub new_name:&'a str,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct MoveFileRequest<'a>{
+    pub file:WebdavFile,
+    pub new_parent_id:&'a str,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CopyFileRequest<'a>{
+    pub file:WebdavFile,
+    pub new_parent_id:&'a str,
+}
+
+
 
 #[derive(Debug, Clone, Serialize)]
 pub struct DelFileRequest {
     pub ids: Vec<String>,
 }
 
-
-#[derive(Debug, Clone, Serialize)]
-pub struct MoveFileRequest {
-    pub ids: Vec<String>,
-    pub to: MoveTo,
-}
 
 
 #[derive(Debug, Clone, Serialize)]
@@ -131,12 +144,6 @@ mod my_date_format {
         let s = String::deserialize(deserializer)?;
         Utc.datetime_from_str(&s, FORMAT).map_err(serde::de::Error::custom)
     }
-}
-
-
-#[derive(Debug, Clone, Serialize)]
-pub struct RenameFileRequest<'a>{
-    pub name: &'a str,
 }
 
 

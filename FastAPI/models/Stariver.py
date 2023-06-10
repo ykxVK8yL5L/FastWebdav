@@ -169,6 +169,59 @@ class Stariver():
             return remove_file_req.dav_file
         else:
             raise HTTPException(status_code=400, detail="无法创建文件夹")
+    
+    def rename_file(self,rename_file_req:RenameFileRequest):
+        #官方不支持重命名，先放这
+        # folderId = rename_file_req.dav_file.parent_id
+        # if folderId=='root':
+        #     folderId='0'
+        # payload = {
+        #     'ids':[rename_file_req.dav_file.file_id],
+        # }
+        # response = requests.post("https://productapi.stariverpan.com/cmsprovider/v1.2/cloud/fileLogicDel",verify=False, headers=self.headers, data=json.dumps(payload))
+        # result = json.loads(response.text)
+
+        # if result['code']==200:
+        #     self.cache.delete(f"{self.token}-files-{folderId}")
+        #     return rename_file_req.dav_file
+        # else:
+        #     raise HTTPException(status_code=400, detail="无法创建文件夹")
+        raise HTTPException(status_code=400, detail="暂不支持重命名文件")
+
+    def move_file(self,move_file_req:MoveFileRequest):
+        folderId = move_file_req.dav_file.parent_id
+        if folderId=='root':
+            folderId='0'
+        payload = {
+            'ids':[move_file_req.dav_file.file_id],
+            'parentId':move_file_req.new_parent_id,
+        }
+        response = requests.post("https://productapi.stariverpan.com/cmsprovider/v1.2/cloud/fileMove",verify=False, headers=self.headers, data=json.dumps(payload))
+        result = json.loads(response.text)
+
+        if result['code']==200:
+            self.cache.delete(f"{self.token}-files-{folderId}")
+            return move_file_req.dav_file
+        else:
+            raise HTTPException(status_code=400, detail="无法移动文件")
+    
+    def copy_file(self,copy_file_req:CopyFileRequest):
+        #官方不支持重命名，先放这
+        # folderId = copy_file_req.dav_file.parent_id
+        # if folderId=='root':
+        #     folderId='0'
+        # payload = {
+        #     'ids':[copy_file_req.dav_file.file_id],
+        # }
+        # response = requests.post("https://productapi.stariverpan.com/cmsprovider/v1.2/cloud/fileLogicDel",verify=False, headers=self.headers, data=json.dumps(payload))
+        # result = json.loads(response.text)
+
+        # if result['code']==200:
+        #     self.cache.delete(f"{self.token}-files-{folderId}")
+        #     return copy_file_req.dav_file
+        # else:
+        #     raise HTTPException(status_code=400, detail="无法创建文件夹")
+        raise HTTPException(status_code=400, detail="暂不支持复制文件")
 
        
 

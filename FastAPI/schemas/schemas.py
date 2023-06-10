@@ -147,8 +147,35 @@ class CreateFolderRequest(BaseModel):
 
 class RemoveFileRequest(BaseModel):
     '''
-    创建文件夹请求
+    删除文件请求
     '''
     dav_file:Union[DavFile, None] =Field(title="删除文件信息",description="删除文件信息",alias='file') 
     class Config:
-        title = "CreateFolderRequest:创建文件夹请求"
+        title = "RemoveFileRequest:删除文件请求"
+
+class RenameFileRequest(BaseModel):
+    '''
+    重命名请求
+    '''
+    dav_file:Union[DavFile, None] =Field(title="重命名文件信息",description="重命名文件信息",alias='file') 
+    new_name:str = Field(title="新文件名称",description="新文件名称")
+    class Config:
+        title = "RenameFileRequest:重命名请求"
+
+class MoveFileRequest(BaseModel):
+    '''
+    移动文件请求
+    '''
+    dav_file:Union[DavFile, None] =Field(title="移动文件信息",description="移动文件信息",alias='file') 
+    new_parent_id:str = Field(title="新文件目录ID",description="新文件目录ID")
+    class Config:
+        title = "MoveFileRequest:移动文件请求"
+
+class CopyFileRequest(BaseModel):
+    '''
+    复制文件请求
+    '''
+    dav_file:Union[DavFile, None] =Field(title="复制文件信息",description=" 复制文件信息",alias='file') 
+    new_parent_id:str = Field(title="复制到目录ID",description="复制到目录ID")
+    class Config:
+        title = "CopyFileRequest:复制文件请求"

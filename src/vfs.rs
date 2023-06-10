@@ -214,12 +214,60 @@ impl WebdavDriveFileSystem {
         self.upload_buffer_size = new_size as usize;
     }
 
-    async fn create_folder(&self, parent_id:&str, folder_name: &str) -> Result<WebdavFile> {
-        let root = WebdavFile::new_root();
-        Ok(root)
+    async fn create_folder(&self,dav_path: &DavPath, parent_id:&str, folder_name: &str) -> Result<WebdavFile> {
+
+        let path = self.normalize_dav_path(dav_path);
+        let parent_path = path.parent().ok_or(FsError::NotFound)?;
+
+        if parent_id=="0" && parent_path.to_path_buf().to_string_lossy()=="/"{
+            error!("根目录的文件夹需要在provider.ini中指定");
+            panic!("根目录的文件夹需要在provider.ini中指定")
+        }
+
+        let path_str = parent_path.to_string_lossy().into_owned();
+        let parent_file = match self.get_by_path(&path_str).await{
+            Ok(res)=>res.unwrap(),
+            Err(err)=>{
+                error!("获取上级目录信息失败: {:?}", err);
+                panic!("获取上级目录信息失败: {:?}", err)
+            }
+        };
+
+        let create_req = CreateFolderRequest{
+            name:folder_name,
+            parent_id:parent_id,
+            parend_file:parent_file.clone()
+        };
+        let create_url = format!("{}{}/create_folder",API_URL,parent_file.provider.unwrap()); 
+        let created_folder:WebdavFile = match self.post_request(create_url, &create_req).await{
+            Ok(res)=>res.unwrap(),
+            Err(err)=>{
+                error!("创建文件夹失败: {:?}", err);
+                panic!("创建文件夹失败: {:?}", err)
+            }
+        };
+
+        Ok(created_folder)
     }
 
-    pub async fn remove_file(&self, file_id: &str) -> Result<()> {
+    pub async fn remove_file(&self,file: &WebdavFile) -> Result<()> {
+
+        if file.id=="0"{
+            error!("根目录的文件夹无法修改或删除");
+            panic!("根目录的文件夹无法修改或删除")
+        }
+
+        let remove_req = RemoveFileRequest{
+            file:file.clone()
+        };
+        let remove_url = format!("{}{}/remove_file",API_URL,file.clone().provider.unwrap()); 
+        let removed_file:WebdavFile = match self.post_request(remove_url, &remove_req).await{
+            Ok(res)=>res.unwrap(),
+            Err(err)=>{
+                error!("删除文件失败: {:?}", err);
+                panic!("删除文件失败: {:?}", err)
+            }
+        };
         Ok(())
     }
 
@@ -741,7 +789,7 @@ impl DavFileSystem for WebdavDriveFileSystem {
             }
             if let Some(name) = path.file_name() {
                 let name = name.to_string_lossy().into_owned();
-                self.create_folder(&parent_file.id,&name).await;
+                self.create_folder(dav_path,&parent_file.id,&name).await;
                 self.dir_cache.invalidate(parent_path).await;
                 Ok(())
             } else {
@@ -757,6 +805,22 @@ impl DavFileSystem for WebdavDriveFileSystem {
         debug!(path = %path.display(), "fs: remove_dir");
         async move {
 
+            let parent_path = path.parent().unwrap();
+
+            let path_str = parent_path.to_string_lossy().into_owned();
+            let parent_file = match self.get_by_path(&path_str).await{
+                Ok(res)=>res.unwrap(),
+                Err(err)=>{
+                    error!("获取上级目录信息失败: {:?}", err);
+                    panic!("获取上级目录信息失败: {:?}", err)
+                }
+            };
+            if parent_file.id=="0" && parent_path.to_path_buf().to_string_lossy()=="/"{
+                error!("根目录的文件夹无法修改或删除");
+                panic!("根目录的文件夹无法修改或删除")
+            }
+
+
             let file = self
                 .get_file(path.clone())
                 .await?
@@ -766,7 +830,7 @@ impl DavFileSystem for WebdavDriveFileSystem {
                 return Err(FsError::Forbidden);
             }
 
-            self.remove_file(&file.id)
+            self.remove_file(&file)
                 .await
                 .map_err(|err| {
                     error!(path = %path.display(), error = %err, "remove directory failed");
@@ -789,7 +853,7 @@ impl DavFileSystem for WebdavDriveFileSystem {
                 .await?
                 .ok_or(FsError::NotFound)?;
 
-            self.remove_file(&file.id)
+            self.remove_file(&file)
                 .await
                 .map_err(|err| {
                     error!(path = %path.display(), error = %err, "remove file failed");
@@ -1057,7 +1121,7 @@ impl FastDavFile {
                 // existing file, delete before upload
                 if let Err(err) = self
                     .fs
-                    .remove_file(&self.file.id)
+                    .remove_file(&self.file)
                     .await
                 {
                     error!(file_name = %self.file.name, error = %err, "delete file before upload failed");

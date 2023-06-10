@@ -77,6 +77,21 @@ def create_provider_router(name):
         文件分片上传
         '''
         return provider.complete_upload(complete_req)
+    
+    @router.post("/create_folder")
+    async def create_folder(create_folder_req:CreateFolderRequest)-> DavFile:
+        '''
+        文件分片上传
+        '''
+        return provider.create_folder(create_folder_req)
+    
+
+    @router.post("/remove_file")
+    async def remove_file(remove_req:DavFile)-> DavFile:
+        '''
+        文件分片上传
+        '''
+        return provider.remove_file(remove_req)
 
 
     return router

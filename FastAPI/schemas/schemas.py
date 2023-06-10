@@ -134,3 +134,13 @@ class CompleteUploadResponse(BaseModel):
     class Config:
         title = "CompleteUploadResponse:完成上传响应"
 
+
+class CreateFolderRequest(BaseModel):
+    '''
+    创建文件夹请求
+    '''
+    name:str = Field(title="新文件夹名称",description="新文件夹名称")
+    parent_id:str = Field(title="上级目录ID",description="上级目录ID,不允许在根目录创建") 
+    parend_file:Union[DavFile, None] =Field(title="上级目录文件信息",description="上级目录文件信息") 
+    class Config:
+        title = "CreateFolderRequest:创建文件夹请求"

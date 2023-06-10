@@ -70,10 +70,16 @@ pub struct Credentials {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct CreateFolderRequest<'a> {
-    pub kind: &'a str,
     pub name: &'a str,
     pub parent_id: &'a str,
+    pub parend_file:WebdavFile,
 }
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RemoveFileRequest{
+    pub file:WebdavFile,
+}
+
 
 #[derive(Debug, Clone, Serialize)]
 pub struct DelFileRequest {

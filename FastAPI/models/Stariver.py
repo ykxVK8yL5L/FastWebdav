@@ -2,6 +2,7 @@ import json, requests
 import time
 import datetime
 from datetime import timedelta
+from fastapi import HTTPException
 import re
 import math
 import hashlib
@@ -130,6 +131,29 @@ class Stariver():
         # else:
         #     download_expires_url=f"{download_url}?x-oss-expires={expires_timestamp_sec}"
         return ""
+
+    def create_folder(self,create_folder_req:CreateFolderRequest):
+        now = datetime.datetime.now()
+        # 格式化时间为字符串
+        formatted_time = now.strftime("%Y-%m-%d %H:%M:%S")
+        folderId = create_folder_req.parent_id
+        if folderId=='root':
+            folderId='0'
+        payload = {
+            'parentId':folderId,
+            'fileName':create_folder_req.name,
+        }
+        response = requests.post("https://productapi.stariverpan.com/cmsprovider/v1.2/cloud/addFolder",verify=False, headers=self.headers, data=json.dumps(payload))
+        result = json.loads(response.text)
+
+        if result['code']==200:
+            dav_file = DavFile(id='123',parent_id=create_folder_req.parent_id,provider=create_folder_req.parend_file.provider,kind=0,name="testcreate",size=0,create_time=formatted_time)
+            return dav_file
+        else:
+            raise HTTPException(status_code=400, detail="无法创建文件夹")
+
+       
+
 
     # 以下都是辅助方法
     def sign(self,token: str, cid: str, time: int) -> str:

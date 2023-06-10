@@ -83,7 +83,6 @@ class NeteaseCloudMusic():
 
                 dav_file = DavFile(id=file['id'],provider=self.provider,parent_id="root",kind= kind,name=name,size=file['size'],create_time=formatted_time,download_url=download_url) 
                 file_list.append(dav_file)
-            print(file_list)
             self.cache.set(f"NeteaseCloudMusic-{self.playlist_id}-{folderId}", file_list, timeout=self.cache_time)
         return file_list
 

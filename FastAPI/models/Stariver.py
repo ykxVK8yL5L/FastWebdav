@@ -152,6 +152,22 @@ class Stariver():
         else:
             raise HTTPException(status_code=400, detail="无法创建文件夹")
 
+    
+    def remove_file(self,remove_file_req:RemoveFileRequest):
+        folderId = remove_file_req.dav_file.parent_id
+        if folderId=='root':
+            folderId='0'
+        payload = {
+            'ids':[remove_file_req.dav_file.file_id],
+        }
+        response = requests.post("https://productapi.stariverpan.com/cmsprovider/v1.2/cloud/fileLogicDel",verify=False, headers=self.headers, data=json.dumps(payload))
+        result = json.loads(response.text)
+
+        if result['code']==200:
+            return remove_file_req.dav_file
+        else:
+            raise HTTPException(status_code=400, detail="无法创建文件夹")
+
        
 
 

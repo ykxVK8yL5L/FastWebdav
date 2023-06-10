@@ -251,7 +251,6 @@ impl WebdavDriveFileSystem {
     }
 
     pub async fn remove_file(&self,file: &WebdavFile) -> Result<()> {
-
         if file.id=="0"{
             error!("根目录的文件夹无法修改或删除");
             panic!("根目录的文件夹无法修改或删除")

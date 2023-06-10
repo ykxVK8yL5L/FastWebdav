@@ -87,11 +87,11 @@ def create_provider_router(name):
     
 
     @router.post("/remove_file")
-    async def remove_file(remove_req:DavFile)-> DavFile:
+    async def remove_file(remove_file_req:RemoveFileRequest)-> DavFile:
         '''
         文件分片上传
         '''
-        return provider.remove_file(remove_req)
+        return provider.remove_file(remove_file_req)
 
 
     return router

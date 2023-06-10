@@ -144,3 +144,11 @@ class CreateFolderRequest(BaseModel):
     parend_file:Union[DavFile, None] =Field(title="上级目录文件信息",description="上级目录文件信息") 
     class Config:
         title = "CreateFolderRequest:创建文件夹请求"
+
+class RemoveFileRequest(BaseModel):
+    '''
+    创建文件夹请求
+    '''
+    dav_file:Union[DavFile, None] =Field(title="删除文件信息",description="删除文件信息",alias='file') 
+    class Config:
+        title = "CreateFolderRequest:创建文件夹请求"

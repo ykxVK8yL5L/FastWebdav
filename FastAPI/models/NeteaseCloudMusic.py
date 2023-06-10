@@ -13,11 +13,13 @@ from schemas.schemas import *
 
 
 class NeteaseCloudMusic():
-    def __init__(self,provider='',playlist_id=''):
+    def __init__(self,provider='',playlist_id='',count=50):
         # 创建配置文件对象
         self.config = configparser.SafeConfigParser()
         self.provider = provider
         self.playlist_id = playlist_id
+        # 显示数量
+        self.count = count
         self.cache = SimpleCache()
         # 防止请求过于频繁，用于请求间隔时间
         self.sleep_time = 0.005
@@ -41,7 +43,7 @@ class NeteaseCloudMusic():
         if not file_list:
             file_list = []
             kind = '1'
-            url = f"https://ncm.icodeq.com/playlist/track/all?id={self.playlist_id}&limit=30&offset=0"
+            url = f"https://ncm.icodeq.com/playlist/track/all?id={self.playlist_id}&limit={self.count}&offset=0"
             try:
                 response = requests.get(url, verify=False, headers=self.headers, timeout=100)
                 # 如果请求失败，则抛出异常

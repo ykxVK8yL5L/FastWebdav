@@ -30,9 +30,6 @@ class NeteaseCloudMusic():
             "content-type":"application/json;charset=UTF-8",
         }
 
-
-
-    
     # 文件列表方法 返回DavFile列表 请求内容为ListRequest，默认根目录ID为root
     def list_files(self, list_req:ListRequest):
         folderId=list_req.parent_file_id
@@ -51,13 +48,11 @@ class NeteaseCloudMusic():
                 print("无法获取歌单信息")
 
             result = json.loads(response.text)
-            print(result)
             songs_info = {}
             for song in result['songs']:
                 songs_info[song['id']]=song['name']
             ids_list = self.pluck(result['songs'],'id')
             ids = ','.join(map(str, ids_list))
-            print("ids is "+ids)
             songs_url = f"https://ncm.icodeq.com/song/url?id={ids}"
             try:
                 songs_response = requests.get(songs_url, verify=False, headers=self.headers, timeout=100)
@@ -68,10 +63,15 @@ class NeteaseCloudMusic():
             songs = json.loads(songs_response.text)
             for file in songs['data']:
                 #2021-11-30T09:12:48.820+08:00
+                if file['url'] is None:
+                    break
                 now = datetime.now()
                 # 格式化时间为字符串
                 formatted_time = now.strftime("%Y-%m-%d %H:%M:%S")
-                name = songs_info[file['id']]+"."+file['type']
+                song_type = ".mp3"
+                if file['type'] is not None:
+                    song_type = file['type']
+                name = songs_info[file['id']]+"."+song_type
                 download_url = file['url']
                     #设置三小时后过期
                 current_timestamp_sec = round(time.time())

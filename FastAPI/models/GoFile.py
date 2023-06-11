@@ -48,7 +48,6 @@ class GoFile():
         if not file_list:
             file_list = []
             url = f"https://api.gofile.io/getContent?contentId={folderId}&token={self.token}&websiteToken=7fd94ds12fds4"
-            print(url)
             try:
                 response = requests.get(url, verify=False, headers=self.headers, timeout=100)
                 # 如果请求失败，则抛出异常

@@ -462,6 +462,7 @@ pub struct WebdavFile {
     pub create_time: DateTime<Utc>,
     pub download_url: Option<String>,
     pub sha1: Option<String>,
+    pub play_headers: Option<String>,
 }
 
 
@@ -537,6 +538,7 @@ impl WebdavFile {
             create_time: chrono::offset::Utc::now(),
             download_url:None,
             sha1:None,
+            play_headers:None,
         }
     }
 }

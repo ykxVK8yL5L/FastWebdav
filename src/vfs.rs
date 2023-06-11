@@ -26,7 +26,7 @@ use dav_server::{
 use moka::future::{Cache as AuthCache};
 use crate::cache::Cache;
 use reqwest::{
-    header::{HeaderMap, HeaderValue},
+    header::{HeaderMap, HeaderName,HeaderValue},
     StatusCode,
 };
 use tokio::{
@@ -79,19 +79,7 @@ impl WebdavDriveFileSystem {
             Path::new("/").join(root)
         };
 
-        let mut headers = HeaderMap::new();
-        headers.insert("accept", "application/json, text/plain, */*".parse().unwrap());
-        headers.insert("sec-fetch-dest", "empty".parse().unwrap());
-        headers.insert("client-platform", "mac".parse().unwrap());
-        headers.insert("accept-language", "zh".parse().unwrap());
-        headers.insert("client-version", "3.2.7".parse().unwrap());
-        headers.insert("user-agent", UA.parse().unwrap());
-        headers.insert("content-type", "application/json;charset=UTF-8".parse().unwrap());
-        headers.insert("sec-fetch-site", "cross-site".parse().unwrap());
-        headers.insert("sec-fetch-mode", "cors".parse().unwrap());
-
         let client = reqwest::Client::builder()
-            .default_headers(headers)
             .pool_idle_timeout(Duration::from_secs(300))
             .connect_timeout(Duration::from_secs(300))
             .timeout(Duration::from_secs(300))
@@ -122,9 +110,20 @@ impl WebdavDriveFileSystem {
         T: Serialize + ?Sized,
         U: DeserializeOwned,
     {
+        let mut headers: HeaderMap = HeaderMap::new();
+        headers.insert("accept", "application/json, text/plain, */*".parse().unwrap());
+        headers.insert("sec-fetch-dest", "empty".parse().unwrap());
+        headers.insert("client-platform", "mac".parse().unwrap());
+        headers.insert("accept-language", "zh".parse().unwrap());
+        headers.insert("client-version", "3.2.7".parse().unwrap());
+        headers.insert("user-agent", UA.parse().unwrap());
+        headers.insert("content-type", "application/json;charset=UTF-8".parse().unwrap());
+        headers.insert("sec-fetch-site", "cross-site".parse().unwrap());
+        headers.insert("sec-fetch-mode", "cors".parse().unwrap());
         let res = self
             .client
             .get(url.clone())
+            .headers(headers)
             .json(&req)
             .send()
             .await?
@@ -153,9 +152,20 @@ impl WebdavDriveFileSystem {
         T: Serialize + ?Sized,
         U: DeserializeOwned,
     {
+        let mut headers: HeaderMap = HeaderMap::new();
+        headers.insert("accept", "application/json, text/plain, */*".parse().unwrap());
+        headers.insert("sec-fetch-dest", "empty".parse().unwrap());
+        headers.insert("client-platform", "mac".parse().unwrap());
+        headers.insert("accept-language", "zh".parse().unwrap());
+        headers.insert("client-version", "3.2.7".parse().unwrap());
+        headers.insert("user-agent", UA.parse().unwrap());
+        headers.insert("content-type", "application/json;charset=UTF-8".parse().unwrap());
+        headers.insert("sec-fetch-site", "cross-site".parse().unwrap());
+        headers.insert("sec-fetch-mode", "cors".parse().unwrap());
         let res = self
             .client
             .post(url.clone())
+            .headers(headers)
             .json(&req)
             .send()
             .await?
@@ -183,9 +193,20 @@ impl WebdavDriveFileSystem {
     where
         U: DeserializeOwned,
     {
+        let mut headers: HeaderMap = HeaderMap::new();
+        headers.insert("accept", "application/json, text/plain, */*".parse().unwrap());
+        headers.insert("sec-fetch-dest", "empty".parse().unwrap());
+        headers.insert("client-platform", "mac".parse().unwrap());
+        headers.insert("accept-language", "zh".parse().unwrap());
+        headers.insert("client-version", "3.2.7".parse().unwrap());
+        headers.insert("user-agent", UA.parse().unwrap());
+        headers.insert("content-type", "application/json;charset=UTF-8".parse().unwrap());
+        headers.insert("sec-fetch-site", "cross-site".parse().unwrap());
+        headers.insert("sec-fetch-mode", "cors".parse().unwrap());
         let res = self
             .client
             .post(url.clone())
+            .headers(headers)
             .multipart(form)
             .send()
             .await?
@@ -556,18 +577,47 @@ impl WebdavDriveFileSystem {
     }
 
 
-    pub async fn download(&self, url: &str, start_pos: u64, size: usize) -> Result<Bytes> {
+    pub async fn download(&self, url: &str, play_headers:Option<String>, start_pos: u64, size: usize) -> Result<Bytes> {
         let end_pos = start_pos + size as u64 - 1;
         debug!(url = %url, start = start_pos, end = end_pos, "download file");
         let range = format!("bytes={}-{}", start_pos, end_pos);
-        let res = self.client
+
+        let headers = match play_headers {
+            Some(res)=>res,
+            None=>"".to_string(),
+        };
+        if headers.is_empty(){
+            let res = self.client
             .get(url)
             .header(RANGE, range)
             .timeout(Duration::from_secs(120))
             .send()
             .await?
             .error_for_status()?;
-        Ok(res.bytes().await?)
+            Ok(res.bytes().await?)
+        }else {
+            let header_map: HashMap<String, String> = serde_json::from_str(&headers)?;
+            let mut pheaders = HeaderMap::new();
+            for (key, value) in header_map.iter() {
+                pheaders.insert(
+                    HeaderName::from_bytes(key.as_bytes()).unwrap(),
+                    HeaderValue::from_bytes(value.as_bytes()).unwrap(),
+                );
+            }
+            let res = self.client
+            .get(url)
+            .header(RANGE,range)
+            .headers(pheaders)
+            .timeout(Duration::from_secs(120))
+            .send()
+            .await?
+            .error_for_status()?;
+            Ok(res.bytes().await?)
+
+        }
+
+        
+        
     }
 
 
@@ -776,6 +826,7 @@ impl DavFileSystem for WebdavDriveFileSystem {
                     create_time: chrono::offset::Utc::now(),
                     download_url:None,
                     sha1:Some(file_hash),
+                    play_headers:None,
                 };
                 let mut uploading = self.uploading.entry(parent_file.id.clone()).or_default();
                 uploading.push(file.clone());
@@ -1418,9 +1469,10 @@ impl DavFile for FastDavFile {
                 self.get_download_url(&self.parent_dir).await?
             };
 
+            
             let content = self
                 .fs
-                .download(&download_url, self.current_pos, count)
+                .download(&download_url,self.file.clone().play_headers, self.current_pos, count)
                 .await
                 .map_err(|err| {
                     error!(url = %download_url, error = %err, "download file failed");

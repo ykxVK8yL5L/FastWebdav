@@ -13,7 +13,15 @@ from schemas.schemas import *
 
 
 class NeteaseCloudMusic():
+    '''
+    NeteaseCloudMusic:网易云音乐歌单，功能同官方，无破解
+    '''
     def __init__(self,provider='',playlist_id='',count=50):
+        '''
+        :param provider: 模型实例名称
+        :param playlist_id: 歌单ID
+        :param count: 歌曲显示数量
+        '''
         # 创建配置文件对象
         self.config = configparser.SafeConfigParser()
         self.provider = provider

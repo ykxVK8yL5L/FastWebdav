@@ -1,4 +1,4 @@
-import os, sys
+import os,sys,glob
 from typing import Annotated
 from datetime import datetime
 import configparser
@@ -9,6 +9,8 @@ from models import *
 from schemas.schemas import *
 import json
 import base64
+import re
+
 
 #app = FastAPI(docs_url=None, redoc_url=None)
 app = FastAPI(title='FastWebdav的API',description='为webdav提供数据支持', redoc_url=None)
@@ -64,7 +66,10 @@ def create_provider_router(name):
     @router.post("/upload_chunk")
     async def upload_chunk(filedata: Annotated[bytes, File()],slice_req: Annotated[str, Form()])-> SliceUploadResponse:
         '''
-        文件分片上传
+        文件分片上传\n
+        filedata: 上传的数据，为字节型。\n
+        slice_req: form提交过来的数据，从中提取SliceUploadRequest模型。\n
+        返回:SliceUploadResponse上传响应模型
         '''
         json_str = base64.b64decode(slice_req).decode('utf-8')
         slice_req_obj = parse_obj_as(SliceUploadRequest, json.loads(json_str))
@@ -123,7 +128,7 @@ for provider in providers:
 
 
 
-@app.get("/",response_model=list[DavFile])
+@app.get("/",response_model=list[DavFile],summary='所有provider',description='获取所有provider,就当是根目录文件夹吧')
 async def root():
     now = datetime.now()
     # 格式化时间为字符串
@@ -134,3 +139,32 @@ async def root():
         file = DavFile(id='root',provider=provider,parent_id=0,kind= 0,name=name,size=0,create_time=formatted_time,download_url=None)
         files.append(file)
     return files
+
+
+@app.get("/models",summary='所有模型',description='获取所有模型')
+async def models():
+    models_dir = os.path.join(os.getcwd(), 'models')
+    module_files = glob.glob(os.path.join(models_dir, "*.py"))
+    module_names = [os.path.basename(f)[:-3] for f in module_files if not f.endswith("__init__.py")]
+    models = []
+    for module_name in module_names:
+        module_path = f'models.{module_name}'
+        module = __import__(module_path)
+        class_ = getattr(module, module_name)
+        class_docstring = class_.__doc__.strip()
+        model_info = {}
+        model_info['name'] = module_name
+        model_info['comment'] = class_docstring
+        model_info['params'] = []
+        init_docstring = class_.__init__.__doc__
+        init_param_info = {}
+        if init_docstring:
+            init_doc_lines = init_docstring.strip().split("\n")
+            for line in init_doc_lines:
+                param_match = re.match(r":param\s+(\w+)\s*:\s*(.*)", line.strip())
+                if param_match:
+                    init_param_info['name'] = param_match.group(1)
+                    init_param_info['comment'] = param_match.group(2)
+                    model_info['params'].append(init_param_info)
+        models.append(model_info)
+    return models

@@ -13,8 +13,16 @@ from schemas.schemas import *
 
 
 class Meting():
+    '''
+    Meting:用来获取各大平台歌单
+    '''
     def __init__(self,provider='',server='',playlist_id=''):
         # 创建配置文件对象
+        '''
+        :param provider: 模型实例名称
+        :param server: 服务类型tencent、netease
+        :param playlist_id: 歌单ID
+        '''
         self.config = configparser.SafeConfigParser()
         self.provider = provider
         self.server = server

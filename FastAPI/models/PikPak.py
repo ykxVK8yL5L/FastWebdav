@@ -13,8 +13,16 @@ from schemas.schemas import *
 
 
 class PikPak():
+    '''
+    PikPak:10T网盘
+    '''
     def __init__(self,provider='',username='',password=''):
         # 创建配置文件对象
+        '''
+        :param provider: 模型实例名称
+        :param username: 用户名
+        :param password: 密码
+        '''
         self.config = configparser.SafeConfigParser()
         self.provider = provider
         self.username = username

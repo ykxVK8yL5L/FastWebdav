@@ -17,7 +17,14 @@ TMP_FILE_API="https://tmp-api.vx-cdn.com/api_v2/file"
 TMP_TOKEN_API="https://tmp-api.vx-cdn.com/api_v2/token"
 
 class TmpLink():
+    '''
+    TmpLink:https://tmp.link钛盘，临时网盘
+    '''
     def __init__(self,provider='',token=''):
+        '''
+        :param provider: 模型实例名称
+        :param token: 登陆token可在cli上传处获得
+        '''
         self.config = configparser.SafeConfigParser()
         self.provider = provider
         self.token = token

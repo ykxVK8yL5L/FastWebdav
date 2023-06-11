@@ -15,7 +15,14 @@ from schemas.schemas import *
 
 
 class Stariver():
+    '''
+    Stariver:小龙云盘
+    '''
     def __init__(self,provider='',token=''):
+        '''
+        :param provider: 模型实例名称
+        :param token: 登陆密钥
+        '''
         # 创建配置文件对象
         self.config = configparser.SafeConfigParser()
         self.provider = provider

@@ -37,22 +37,7 @@ class GoFile():
             "user-agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/27.0.1453.93 Safari/537.36",
             "content-type":"application/json;charset=UTF-8",
         }
-        self.play_headers = {
-            'authority': 'store1.gofile.io',
-            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-            'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8',
-            'cookie': '',
-            'sec-ch-ua': '"Not.A/Brand";v="8", "Chromium";v="114", "Google Chrome";v="114"',
-            'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"macOS"',
-            'sec-fetch-dest': 'document',
-            'sec-fetch-mode': 'navigate',
-            'sec-fetch-site': 'same-site',
-            'sec-fetch-user': '?1',
-            'upgrade-insecure-requests': '1',
-            'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
-        }
-
+       
     # 文件列表方法 返回DavFile列表 请求内容为ListRequest，默认根目录ID为root
     def list_files(self, list_req:ListRequest):
         folderId=list_req.parent_file_id
@@ -90,7 +75,23 @@ class GoFile():
                 else:
                     download_url=f"{download_url}?x-oss-expires={expires_timestamp_sec}"
 
-                playe_headers = json.dumps(self.play_headers)
+                url: str = file["link"]
+                download_headers = {
+                    "Cookie": "accountToken=" + self.token,
+                    "Accept-Encoding": "gzip, deflate, br",
+                    "User-Agent": "Mozilla/5.0",
+                    "Accept": "*/*",
+                    "Referer": url + ("/" if not url.endswith("/") else ""),
+                    "Origin": url,
+                    "Connection": "keep-alive",
+                    "Sec-Fetch-Dest": "empty",
+                    "Sec-Fetch-Mode": "cors",
+                    "Sec-Fetch-Site": "same-site",
+                    "Pragma": "no-cache",
+                    "Cache-Control": "no-cache"
+                }
+
+                playe_headers = json.dumps(download_headers)
                 dav_file = DavFile(id=file['id'],provider=self.provider,parent_id=file['parentFolder'],kind= kind,name=file['name'],size=str(file['size']),create_time=formatted_time,download_url=download_url,play_headers=playe_headers) 
                 file_list.append(dav_file)
             self.cache.set(f"GoFile-{self.token}-{self.contentId}", file_list, timeout=self.cache_time)

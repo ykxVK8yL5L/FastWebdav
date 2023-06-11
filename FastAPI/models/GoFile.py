@@ -43,7 +43,7 @@ class GoFile():
         folderId=list_req.parent_file_id
         if folderId=='root':
             folderId=self.contentId
-        file_list = self.cache.get(f"GoFile-{self.token}-{self.contentId}")
+        file_list = self.cache.get(f"GoFile-{self.token}-{folderId}")
         # 如果缓存中没有结果，则重新请求并缓存结果
         if not file_list:
             file_list = []
@@ -60,41 +60,44 @@ class GoFile():
             for child in result['data']['childs']:
                 file=result['data']['contents'][child]
                 kind = 0
+                filesize = 0
                 # 格式化时间为字符串
                 dt = datetime.datetime.fromtimestamp(file['createTime'])
                 formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
+                download_url = None
+                download_headers = None
                 if file['type'] == 'file':
                     kind = 1
-
-                download_url = file['link']
+                    filesize = file['size']
+                    download_url = file['link']
+                    url: str = file["link"]
+                    download_headers = {
+                        "Cookie": "accountToken=" + self.token,
+                        "Accept-Encoding": "gzip, deflate, br",
+                        "User-Agent": "Mozilla/5.0",
+                        "Accept": "*/*",
+                        "Referer": url + ("/" if not url.endswith("/") else ""),
+                        "Origin": url,
+                        "Connection": "keep-alive",
+                        "Sec-Fetch-Dest": "empty",
+                        "Sec-Fetch-Mode": "cors",
+                        "Sec-Fetch-Site": "same-site",
+                        "Pragma": "no-cache",
+                        "Cache-Control": "no-cache"
+                    }
                     #设置三小时后过期
-                current_timestamp_sec = round(time.time())
-                expires_timestamp_sec = current_timestamp_sec+10800
-                if '?' in download_url:
-                    download_url=f"{download_url}&x-oss-expires={expires_timestamp_sec}"
-                else:
-                    download_url=f"{download_url}?x-oss-expires={expires_timestamp_sec}"
-
-                url: str = file["link"]
-                download_headers = {
-                    "Cookie": "accountToken=" + self.token,
-                    "Accept-Encoding": "gzip, deflate, br",
-                    "User-Agent": "Mozilla/5.0",
-                    "Accept": "*/*",
-                    "Referer": url + ("/" if not url.endswith("/") else ""),
-                    "Origin": url,
-                    "Connection": "keep-alive",
-                    "Sec-Fetch-Dest": "empty",
-                    "Sec-Fetch-Mode": "cors",
-                    "Sec-Fetch-Site": "same-site",
-                    "Pragma": "no-cache",
-                    "Cache-Control": "no-cache"
-                }
+                    current_timestamp_sec = round(time.time())
+                    expires_timestamp_sec = current_timestamp_sec+10800
+                    if '?' in download_url:
+                        download_url=f"{download_url}&x-oss-expires={expires_timestamp_sec}"
+                    else:
+                        download_url=f"{download_url}?x-oss-expires={expires_timestamp_sec}"                    
+                
 
                 playe_headers = json.dumps(download_headers)
-                dav_file = DavFile(id=file['id'],provider=self.provider,parent_id=file['parentFolder'],kind= kind,name=file['name'],size=str(file['size']),create_time=formatted_time,download_url=download_url,play_headers=playe_headers) 
+                dav_file = DavFile(id=file['id'],provider=self.provider,parent_id=file['parentFolder'],kind= kind,name=file['name'],size=str(filesize),create_time=formatted_time,download_url=download_url,play_headers=playe_headers) 
                 file_list.append(dav_file)
-            self.cache.set(f"GoFile-{self.token}-{self.contentId}", file_list, timeout=self.cache_time)
+            self.cache.set(f"GoFile-{self.token}-{folderId}", file_list, timeout=self.cache_time)
         return file_list
 
     # 文件下载地址 返回下载地址

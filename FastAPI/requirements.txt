@@ -4,3 +4,4 @@ fastapi
 requests
 cachelib
 python-multipart
+jinja2

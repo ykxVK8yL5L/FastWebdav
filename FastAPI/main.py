@@ -4,6 +4,9 @@ from datetime import datetime
 import configparser
 from fastapi import FastAPI,APIRouter,Request,Query,Path,Request,File,Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import StreamingResponse,HTMLResponse
+from fastapi.templating import Jinja2Templates
 from pydantic import parse_obj_as
 from models import *
 from schemas.schemas import *
@@ -22,7 +25,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
 
 # 创建配置文件对象
 config = configparser.SafeConfigParser()
@@ -168,3 +172,15 @@ async def models():
                     model_info['params'].append(init_param_info)
         models.append(model_info)
     return models
+
+@app.get("/dashboard", include_in_schema=False,response_class=HTMLResponse,summary='管理页面',description='管理页面')
+async def dashboard(request: Request):
+    return templates.TemplateResponse("index.html",{'request': request})
+
+@app.get('/favicon.ico',include_in_schema=False)
+async def favicon():
+    file_name = "favicon.ico"
+    file_path = os.path.join(app.root_path, "static")
+    return FileResponse(path=file_path, headers={"Content-Disposition": "attachment; filename=" + file_name})
+
+

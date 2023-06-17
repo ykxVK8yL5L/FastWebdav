@@ -15,7 +15,6 @@ use reqwest::{
     header::{HeaderMap, HeaderValue},
     StatusCode,
 };
-use config::{Config, ConfigError, File as CFile};
 //use webdav_handler::{body::Body, memls::MemLs, fakels::FakeLs, DavConfig, DavHandler};
 use dav_server::{body::Body, memls::MemLs,DavConfig, DavHandler};
 use vfs::WebdavDriveFileSystem;
@@ -91,12 +90,6 @@ async fn main() -> anyhow::Result<()> {
     }
 
 
-    // 读取配置文件
-    // let mut settings = Config::default();
-    // let config_path = Path::new("config.yaml");
-    // settings.set_default("token", opt.stariver_token).unwrap();
-    // let token:String = settings.get("token").unwrap();
-   
     
     let fs = WebdavDriveFileSystem::new(opt.root, opt.cache_size, opt.cache_ttl,opt.upload_buffer_size,false,false)
         .await

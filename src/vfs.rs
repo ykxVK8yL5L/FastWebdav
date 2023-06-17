@@ -1,4 +1,4 @@
-use std::str;
+use std::{str, result};
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter,Write};
 use std::io::SeekFrom;
@@ -42,8 +42,8 @@ use quick_xml::{Writer, se};
 use quick_xml::se::Serializer as XmlSerializer;
 use serde_json::json;
 use reqwest::header::RANGE;
-
-
+use ini::Ini;
+use regex::Regex;
 
 pub use crate::model::*;
 
@@ -64,6 +64,7 @@ pub struct WebdavDriveFileSystem {
     upload_buffer_size: usize,
     skip_upload_same_size: bool,
     prefer_http_download: bool,
+    encrypt_dirs: Option<Ini>,
 }
 impl WebdavDriveFileSystem {
     pub async fn new(
@@ -90,6 +91,13 @@ impl WebdavDriveFileSystem {
 
 
         let auth_cache = AuthCache::new(2);
+        let dirs_config: Option<Ini> = match Ini::load_from_file("configs/encrypt_dirs.ini"){
+            Ok(res)=>Some(res),
+            Err(err)=>{
+                error!("读取目录配置出错:{:?}",err);
+                None
+            }
+        };
 
         let driver: WebdavDriveFileSystem = Self {
             auth_cache,
@@ -100,6 +108,7 @@ impl WebdavDriveFileSystem {
             upload_buffer_size,
             skip_upload_same_size,
             prefer_http_download,
+            encrypt_dirs:dirs_config,
         };
 
         driver.dir_cache.invalidate_all();
@@ -349,7 +358,14 @@ impl WebdavDriveFileSystem {
 
     async fn list_files_and_cache( &self, path_str: String, parent_file_id: String)-> Result<Vec<WebdavFile>>{
         info!(path = %path_str, parent_id=%parent_file_id,"cache dir");
-
+        let password :String= match &self.encrypt_dirs {
+            Some(result)=>{
+                self.get_password_by_path(&path_str,result)
+            },
+            None=>{
+                "".to_string()
+            }
+        };
         let req:FilesListRequest=FilesListRequest {path_str:json!(path_str),parent_file_id:json!(parent_file_id)}; 
         let mut return_list:Vec<WebdavFile>=vec![];
         let mut file_list:Vec<WebdavFile>=vec![];
@@ -382,10 +398,12 @@ impl WebdavDriveFileSystem {
             file_list.extend(files);
         }   
 
-        // /加密路径
-        if &path_str == "/加密路径" {
-
-            let aes_decoder = AesCTR::new("password","0");
+    
+        if password.is_empty() {
+            self.cache_dir(path_str,file_list.clone()).await;
+            Ok(file_list)
+        }else{
+            let aes_decoder = AesCTR::new(&password,"0");
             let decoder = MixBase64::new(&aes_decoder.passwdOutward);
             for file in &file_list  {
                 let decode_str =  match file.name.rfind('.') {
@@ -393,19 +411,14 @@ impl WebdavDriveFileSystem {
                     None => "".to_string(),
                 };
                 let real_name = decoder.decode(&decode_str);
-                println!("{}",real_name);
                 let mut return_file = file.clone();
                 return_file.name = real_name;
+                return_file.password = Some(password.to_string());
                 return_list.push(return_file.clone());
             }
-        }else {
-            for file in &file_list  {
-                return_list.push(file.clone());
-            }
-        };
-        println!("{}",path_str);
-        self.cache_dir(path_str,return_list.clone()).await;
-        Ok(return_list)
+            self.cache_dir(path_str,return_list.clone()).await;
+            Ok(return_list)
+        }
 
     }
 
@@ -527,7 +540,34 @@ impl WebdavDriveFileSystem {
         }
     
     }
-
+   
+    pub fn get_password_by_path(&self,path:&str,ini:&Ini)->String{
+        //请求的目录路径后面不带反斜杠，自动追回 以配置目录开头即用满足要求
+        let find_path = format!("{}/",path);
+        let mut password = "".to_string();
+        for (sec, prop) in ini.iter() {
+            match sec {
+                Some(section)=>{
+                    if find_path.starts_with(&section) {
+                        match prop.get("password") {
+                            Some(res)=>{
+                                password=res.to_owned();
+                            },
+                            None=>{
+                                password="".to_string();
+                            }
+                        }
+                    }else {
+                        password="".to_string();
+                    }
+                },
+                None=>{
+                    password="".to_string();
+                }
+            };
+        };
+        password
+    }
 
     async fn get_file(&self, path: PathBuf) -> Result<Option<WebdavFile>, FsError> {
 
@@ -854,6 +894,7 @@ impl DavFileSystem for WebdavDriveFileSystem {
                     download_url:None,
                     sha1:Some(file_hash),
                     play_headers:None,
+                    password:None,
                 };
                 let mut uploading = self.uploading.entry(parent_file.id.clone()).or_default();
                 uploading.push(file.clone());
@@ -1507,14 +1548,25 @@ impl DavFile for FastDavFile {
                     error!(url = %download_url, error = %err, "download file failed");
                     FsError::NotFound
                 })?;
-            let mut data = content.to_vec();
-            let mut decoder = AesCTR::new("password",&self.file.size);
-            decoder.set_position(self.current_pos.try_into().unwrap());
-            decoder.decrypt(&mut data);
-          
-            self.current_pos += content.len() as u64;
-            self.download_url = Some(download_url);
-            Ok(Bytes::from(data))
+
+
+            match &self.file.password {
+                Some(password)=>{
+                    let mut data = content.to_vec();
+                    let mut decoder = AesCTR::new(&password,&self.file.size);
+                    decoder.set_position(self.current_pos.try_into().unwrap());
+                    decoder.decrypt(&mut data);
+                    self.current_pos += content.len() as u64;
+                    self.download_url = Some(download_url);
+                    Ok(Bytes::from(data))
+                },
+                None=>{
+                    Ok(content)
+                }
+            }
+
+
+           
         }
         .boxed()
     }

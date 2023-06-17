@@ -21,7 +21,7 @@ tokio = { version = "1", features = ["full"] }
 serde = { version = "=1.0", features = ["derive"] }
 serde_json = "=1.0"
 serde_yaml = "0.9"
-config = "0.11"
+rust-ini = "0.19.0"
 quick-xml = { version = "0.22", features = [ "serialize" ] }
 structopt = "=0.3.22"
 time = { version = "=0.3", features = ["formatting", "parsing"] }
@@ -41,7 +41,7 @@ aes = "0.8"
 cipher = { version = "0.4.2", features = ["dev"] }
 ctr = "0.9.2"
 hex = "0.4.3"
-
+regex = "1.8.4"
 
 [features]
 default = ["rustls-tls", "atomic64"]

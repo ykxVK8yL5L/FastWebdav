@@ -463,6 +463,7 @@ pub struct WebdavFile {
     pub download_url: Option<String>,
     pub sha1: Option<String>,
     pub play_headers: Option<String>,
+    pub password: Option<String>,
 }
 
 
@@ -539,6 +540,7 @@ impl WebdavFile {
             download_url:None,
             sha1:None,
             play_headers:None,
+            password:None,
         }
     }
 }

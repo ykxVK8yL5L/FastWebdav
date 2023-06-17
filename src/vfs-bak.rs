@@ -1371,7 +1371,7 @@ impl FastDavFile {
             };
 
 
-            println!("文件上传结果:{:?}",part);
+            debug!("文件上传结果:{:?}",part);
             debug!(chunk_count = %self.upload_state.chunk_count, current_chunk=current_chunk, "upload chunk info");
             if current_chunk == self.upload_state.chunk_count{
                 debug!(file_name = %self.file.name, "upload finished");

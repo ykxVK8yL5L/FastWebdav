@@ -24,6 +24,7 @@ use model::{Credentials, LoginRequest, LoginResponse, EncrypResponse};
 mod vfs;
 mod model;
 mod cache;
+mod utils;
 
 
 #[derive(StructOpt, Debug)]

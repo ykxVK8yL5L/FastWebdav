@@ -1466,7 +1466,7 @@ impl DavFile for FastDavFile {
         let filesize = &self.file.size;
         
 
-        let password = "!%S*mz(^dpY1wp$fLQbN*Y1s";
+        let password = "password";
         let salt = "AES-CTR".as_bytes();
         let iterations =NonZeroU32::new(1000).unwrap();;
         let output_length = 16;
@@ -1519,6 +1519,7 @@ impl DavFile for FastDavFile {
                 })?;
 
             let mut data = content.to_vec();
+            
             
             cipher.apply_keystream(&mut data);
 

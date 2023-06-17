@@ -10,7 +10,7 @@ use tracing_subscriber::fmt::format;
 use url::Url;
 use base64::{encode, decode};
 use md5::{Md5, Digest as MDigest};
-use sha1::{Sha1};
+use sha1::{Sha1, Digest};
 use anyhow::{Result, Context, Error};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use dashmap::DashMap;
@@ -24,7 +24,6 @@ use dav_server::{
     },
 };
 use moka::future::{Cache as AuthCache};
-use crate::utils::{mixBase64::MixBase64,aesCTR::AesCTR};
 use crate::cache::Cache;
 use reqwest::{
     header::{HeaderMap, HeaderName,HeaderValue},
@@ -42,8 +41,6 @@ use quick_xml::{Writer, se};
 use quick_xml::se::Serializer as XmlSerializer;
 use serde_json::json;
 use reqwest::header::RANGE;
-
-
 
 pub use crate::model::*;
 
@@ -349,9 +346,7 @@ impl WebdavDriveFileSystem {
 
     async fn list_files_and_cache( &self, path_str: String, parent_file_id: String)-> Result<Vec<WebdavFile>>{
         info!(path = %path_str, parent_id=%parent_file_id,"cache dir");
-
         let req:FilesListRequest=FilesListRequest {path_str:json!(path_str),parent_file_id:json!(parent_file_id)}; 
-        let mut return_list:Vec<WebdavFile>=vec![];
         let mut file_list:Vec<WebdavFile>=vec![];
         if parent_file_id == '0'.to_string() && path_str == '/'.to_string() {
             let list_url = API_URL.to_string();
@@ -381,31 +376,9 @@ impl WebdavDriveFileSystem {
             };
             file_list.extend(files);
         }   
-
-        // /加密路径
-        if &path_str == "/加密路径" {
-
-            let aes_decoder = AesCTR::new("password","0");
-            let decoder = MixBase64::new(&aes_decoder.passwdOutward);
-            for file in &file_list  {
-                let decode_str =  match file.name.rfind('.') {
-                    Some(index) => file.name[0..index-1].to_string(),
-                    None => "".to_string(),
-                };
-                let real_name = decoder.decode(&decode_str);
-                println!("{}",real_name);
-                let mut return_file = file.clone();
-                return_file.name = real_name;
-                return_list.push(return_file.clone());
-            }
-        }else {
-            for file in &file_list  {
-                return_list.push(file.clone());
-            }
-        };
-        println!("{}",path_str);
-        self.cache_dir(path_str,return_list.clone()).await;
-        Ok(return_list)
+        
+        self.cache_dir(path_str,file_list.clone()).await;
+        Ok(file_list)
 
     }
 
@@ -1478,8 +1451,6 @@ impl DavFile for FastDavFile {
             parent_id = %self.parent_file_id,
             "file: read_bytes",
         );
-
-     
         async move {
             if self.file.id.is_empty() {
                 // upload in progress
@@ -1507,14 +1478,9 @@ impl DavFile for FastDavFile {
                     error!(url = %download_url, error = %err, "download file failed");
                     FsError::NotFound
                 })?;
-            let mut data = content.to_vec();
-            let mut decoder = AesCTR::new("password",&self.file.size);
-            decoder.set_position(self.current_pos.try_into().unwrap());
-            decoder.decrypt(&mut data);
-          
             self.current_pos += content.len() as u64;
             self.download_url = Some(download_url);
-            Ok(Bytes::from(data))
+            Ok(content)
         }
         .boxed()
     }

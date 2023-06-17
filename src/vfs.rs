@@ -552,6 +552,7 @@ impl WebdavDriveFileSystem {
                         match prop.get("password") {
                             Some(res)=>{
                                 password=res.to_owned();
+                                break;
                             },
                             None=>{
                                 password="".to_string();

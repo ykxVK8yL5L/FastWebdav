@@ -727,7 +727,7 @@ impl WebdavDriveFileSystem {
            panic!("{}",&file_upload_init_res.message);
        }
 
-       &self.set_upload_buffer_size(file_upload_init_res.data.chunk_size);
+       &self.set_upload_buffer_size(file_upload_init_res.data.chunkSize);
         
         Ok(file_upload_init_res)
 
@@ -1357,7 +1357,7 @@ impl FastDavFile {
                         OssArgs {
                             uploader:upload_response.data.uploader,
                             sha1:upload_response.data.fileSha1,
-                            chunkSize:upload_response.data.chunk_size,
+                            chunkSize:upload_response.data.chunkSize,
                             extra_init:Some(res),
                             extra_last:None
                         }
@@ -1366,7 +1366,7 @@ impl FastDavFile {
                         OssArgs {
                             uploader:upload_response.data.uploader,
                             sha1:upload_response.data.fileSha1,
-                            chunkSize:upload_response.data.chunk_size,
+                            chunkSize:upload_response.data.chunkSize,
                             extra_init:None,
                             extra_last:None
                         }

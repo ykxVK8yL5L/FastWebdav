@@ -1,30 +1,11 @@
-use std::ops;
-use ::time::{format_description::well_known::Rfc3339, OffsetDateTime};
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use chrono::{DateTime, Utc};
-
-
-use anyhow::{bail, Context, Result};
-use bytes::Bytes;
 use futures_util::future::FutureExt;
-use reqwest::{
-    header::{HeaderMap, HeaderValue},
-    StatusCode,
-};
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Deserializer, Serialize};
-use tokio::{
-    sync::{oneshot, RwLock},
-    time,
-};
-use tracing::{debug, error, info, warn};
+use serde::{Deserialize, Serialize};
 use dav_server::fs::{DavDirEntry, DavMetaData, FsFuture, FsResult};
 use serde_json::Value;
-use crate::utils::aesctr::AesCTR;
+
 
 
 #[derive(Debug, Clone,Serialize, Deserialize)]
@@ -45,28 +26,6 @@ pub struct LoginData {
     pub token: String,
     pub id: String,
 }
-
-#[derive(Debug, Clone,Serialize, Deserialize)]
-pub struct EncrypResponse {
-    pub code: u32,
-    pub message: String,
-    pub submessage: String,
-    pub data:EncryptData,
-}
-
-#[derive(Debug, Clone,Serialize, Deserialize)]
-pub struct EncryptData {
-    pub Key: String,
-}
-
-
-#[derive(Debug, Clone)]
-pub struct Credentials {
-    pub token: String,
-    pub key: String,
-    pub uid: String,
-}
-
 
 #[derive(Debug, Clone, Serialize)]
 pub struct CreateFolderRequest<'a> {
@@ -187,38 +146,7 @@ pub struct Quota {
 }
 
 
-#[derive(Debug, Clone,Serialize, Deserialize)]
-pub struct ResultRequest {
-    pub fileHash: String,
-}
 
-
-
-#[derive(Debug, Clone,Serialize, Deserialize)]
-pub struct CallbackRequest {
-    pub fileHashs: Vec<String>,
-}
-
-
-#[derive(Debug, Clone,Serialize, Deserialize)]
-pub struct CallbackResponse {
-    pub code: u64,
-    pub message: String,
-    pub submessage: String,
-    pub data: Vec<CallBackData>,
-    pub rsptime: u64,
-}
-
-
-
-#[derive(Debug, Clone,Serialize, Deserialize)]
-pub struct CallBackData {
-    pub fileHash: String,
-    pub fileCid: String,
-    pub thumbnailCid: String,
-    pub coverCid: String,
-    pub cbState: u64,
-}
 
 #[derive(Debug, Clone,Serialize, Deserialize)]
 pub struct UploadInitRequest {
@@ -265,12 +193,6 @@ pub struct OssArgs {
 }
 
 
-#[derive(Debug, Clone,Serialize, Deserialize)]
-pub struct CompleteMultipartUpload {
-    pub Part: Vec<PartInfo>,
-}
-
-
 
 #[derive(Debug, Clone,Serialize, Deserialize)]
 pub struct CompleteFileUpload {
@@ -278,22 +200,6 @@ pub struct CompleteFileUpload {
     pub status:u64,
 }
 
-
-#[derive(Debug, Clone,Serialize, Deserialize)]
-pub struct AddFileRequest {
-    pub filePath: String,
-    pub dirPath: Vec<String>,
-    pub fileName: String,
-    pub fileSize: u64,
-    pub fileCid: String,
-    pub fileType: u64,
-    pub parentId: String,
-    pub suffix: String,
-    pub thumbnail: String,
-    pub duration: u64,
-    pub width: String,
-    pub height: String,
-}
 #[derive(Debug, Clone,Serialize, Deserialize)]
 pub struct AddFileResponse {
     pub code: u64,

@@ -1,24 +1,12 @@
 use std::convert::Infallible;
 use std::net::ToSocketAddrs;
-use std::{env, io, path::PathBuf};
-use std::path::Path;
-use std::fs::File;
-use std::io::Write;
-use std::time::{Duration,SystemTime, UNIX_EPOCH};
+use std::{env, io};
 use headers::{authorization::Basic, Authorization, HeaderMapExt};
-use reqwest::Client;
-use serde::Serialize;
-use serde::de::DeserializeOwned;
 use structopt::StructOpt;
 use tracing::{debug, error, info};
-use reqwest::{
-    header::{HeaderMap, HeaderValue},
-    StatusCode,
-};
-//use webdav_handler::{body::Body, memls::MemLs, fakels::FakeLs, DavConfig, DavHandler};
 use dav_server::{body::Body, memls::MemLs,DavConfig, DavHandler};
 use vfs::WebdavDriveFileSystem;
-use model::{Credentials, LoginRequest, LoginResponse, EncrypResponse};
+
 
 mod vfs;
 mod model;
@@ -59,17 +47,14 @@ struct Opt {
     #[structopt(long, default_value = "/")]
     root: String,
     /// Working directory, refresh_token will be stored in there if specified
-    #[structopt(short = "w", long)]
-    workdir: Option<PathBuf>,
+    // #[structopt(short = "w", long)]
+    // workdir: Option<PathBuf>,
         
     /// Prefix to be stripped off when handling request.
     #[structopt(long, env = "WEBDAV_STRIP_PREFIX")]
     strip_prefix: Option<String>,
 
 }
-
-const UA: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) xiaolongyunpan/3.2.7 Chrome/100.0.4896.143 Electron/18.2.0 Safari/537.36";
-
 
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> anyhow::Result<()> {
@@ -175,35 +160,4 @@ async fn main() -> anyhow::Result<()> {
         .await
         .map_err(|e| error!("server error: {}", e));
     Ok(())
-}
-
- async fn post_request<T, U>(client:&Client,url: String, req: &T) -> anyhow::Result<Option<U>>
-    where
-        T: Serialize + ?Sized,
-        U: DeserializeOwned,
-    {
-        let url = reqwest::Url::parse(&url)?;
-        let res = client
-            .post(url.clone())
-            .json(&req)
-            .send()
-            .await?
-            .error_for_status();
-        match res {
-            Ok(res) => {
-                if res.status() == StatusCode::NO_CONTENT {
-                    return Ok(None);
-                }
-                // let res = res.json::<U>().await?;
-                // Ok(Some(res))
-                let res = res.text().await?;
-                //println!("{}: {}", url, res);
-                let res = serde_json::from_str(&res)?;
-                // let res_obj = res.json::<U>().await?;
-                Ok(Some(res))
-            }
-            Err(err) => {
-                Err(err.into())
-            }
-        }
 }

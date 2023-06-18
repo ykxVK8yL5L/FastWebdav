@@ -1566,9 +1566,6 @@ impl DavFile for FastDavFile {
                     let mut decoder = AesCTR::new(&password,&self.file.size);
                     decoder.set_position(self.current_pos as usize);
                     decoder.decrypt(&mut data);
-                    println!("aes key is:{}",hex::encode(decoder.key));
-                    println!("current pos is :{}",self.current_pos);
-                    println!("pos iv is:{}",hex::encode(decoder.iv));
                     let okbytes = Bytes::from(data);
                     self.current_pos += okbytes.len() as u64;
                     self.download_url = Some(download_url);

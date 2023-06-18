@@ -1540,7 +1540,6 @@ impl DavFile for FastDavFile {
                 self.get_download_url(&self.parent_dir).await?
             };
 
-            println!("fuck start_ops is {}",self.current_pos);
             let content = self
                 .fs
                 .download(&download_url,self.file.clone().play_headers, self.current_pos, count)
@@ -1561,7 +1560,7 @@ impl DavFile for FastDavFile {
                     let okbytes = Bytes::from(data);
                     self.current_pos += okbytes.len() as u64;
                     self.download_url = Some(download_url);
-                    Ok(Bytes::from(okbytes))
+                    Ok(okbytes)
                 },
                 None=>{
                     self.current_pos += content.len() as u64;

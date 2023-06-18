@@ -4,10 +4,11 @@ use aes::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
 use ring::digest::{SHA256, Digest};
 use ring::pbkdf2::{derive, PBKDF2_HMAC_SHA256};
 use ring::pbkdf2;
-use aes::Aes128;
 use md5::{Md5, Digest as MDigest};
 
-type Aes128Ctr64BE = ctr::Ctr64BE<aes::Aes128>;
+type Aes128Ctr128BE = ctr::Ctr128BE<aes::Aes128>;
+
+
 
 pub struct AesCTR {
     pub password: String,
@@ -16,7 +17,7 @@ pub struct AesCTR {
     pub key:[u8;16],
     pub iv:[u8;16],
     pub source_iv:[u8;16],
-    pub cipher:Aes128Ctr64BE,
+    pub cipher:Aes128Ctr128BE,
 }
 
 impl AesCTR {
@@ -41,7 +42,7 @@ impl AesCTR {
         let mut ivhasher = Md5::new();
         ivhasher.update(size_salt.to_string());
         let mut iv:[u8;16] = ivhasher.finalize().into();
-        let mut cipher = Aes128Ctr64BE::new(&key.into(), &iv.into());
+        let cipher = Aes128Ctr128BE::new(&key.into(), &iv.into());
         AesCTR {
             password: password.to_string(),
             sizeSalt: size_salt.to_string(),
@@ -57,10 +58,14 @@ impl AesCTR {
         self.cipher.apply_keystream(&mut buf)
     }
 
+    pub fn decryptb2b(&mut self, content:Vec<u8>, mut buf:&mut Vec<u8>)->Result<(), cipher::StreamCipherError>{
+        self.cipher.apply_keystream_b2b(&content,&mut buf)
+    }
+   
     pub fn set_position(&mut self, position: usize) {
         let increment = position / 16;
         self.increment_iv(increment as u32);
-        self.cipher = Aes128Ctr64BE::new(&self.key.into(), &self.iv.into());
+        self.cipher = Aes128Ctr128BE::new(&self.key.into(), &self.iv.into());
     }
 
     fn increment_iv(&mut self, increment: u32) {

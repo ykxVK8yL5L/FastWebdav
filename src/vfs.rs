@@ -1540,7 +1540,7 @@ impl DavFile for FastDavFile {
                 self.get_download_url(&self.parent_dir).await?
             };
 
-            
+            println!("fuck start_ops is {}",self.current_pos);
             let content = self
                 .fs
                 .download(&download_url,self.file.clone().play_headers, self.current_pos, count)
@@ -1555,19 +1555,22 @@ impl DavFile for FastDavFile {
                 Some(password)=>{
                     let mut data = content.to_vec();
                     let mut decoder = AesCTR::new(&password,&self.file.size);
-                    decoder.set_position(self.current_pos.try_into().unwrap());
+                    decoder.set_position(self.current_pos as usize);
+                    //println!("fuck iv is {}",hex::encode(decoder.iv));
                     decoder.decrypt(&mut data);
-                    self.current_pos += content.len() as u64;
+                    let okbytes = Bytes::from(data);
+                    self.current_pos += okbytes.len() as u64;
                     self.download_url = Some(download_url);
-                    Ok(Bytes::from(data))
+                    Ok(Bytes::from(okbytes))
                 },
                 None=>{
+                    self.current_pos += content.len() as u64;
+                    self.download_url = Some(download_url);
                     Ok(content)
                 }
             }
 
 
-           
         }
         .boxed()
     }

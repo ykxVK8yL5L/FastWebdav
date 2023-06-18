@@ -1420,7 +1420,7 @@ impl FastDavFile {
                 self.upload_state.chunk_count
             );
             let upload_data = chunk_data.freeze();
-            let mut oss_args = match self.upload_state.oss_args.clone() {
+            let oss_args = match self.upload_state.oss_args.clone() {
                 Some(oss_args) => oss_args,
                 None => {
                     error!(file_name = %self.file.name, "获取文件上传信息错误");
@@ -1452,17 +1452,18 @@ impl FastDavFile {
             debug!(chunk_count = %self.upload_state.chunk_count, current_chunk=current_chunk, "upload chunk info");
             if current_chunk == self.upload_state.chunk_count{
                 debug!(file_name = %self.file.name, "upload finished");
-                let mut buffer = Vec::new();
-                let mut ser = XmlSerializer::with_root(Writer::new_with_indent(&mut buffer, b' ', 4), Some("CompleteMultipartUpload"));
+                let buffer = Vec::new();
+                //let mut ser = XmlSerializer::with_root(Writer::new_with_indent(&mut buffer, b' ', 4), Some("CompleteMultipartUpload"));
                 //self.upload_state.upload_tags.serialize(&mut ser).unwrap();
                 let upload_tags = String::from_utf8(buffer).unwrap();
-                self.fs.complete_upload(&self.file,upload_tags,&oss_args,&self.upload_state.upload_id).await;
+                self.fs.complete_upload(&self.file,upload_tags,&oss_args,&self.upload_state.upload_id).await.unwrap();
+                self.upload_state.buffer.clear();
                 self.upload_state = UploadState::default();
                 // self.upload_state.buffer.clear();
                 // self.upload_state.chunk = 0;
                 self.fs.dir_cache.invalidate(&self.parent_dir).await;
                 info!("parent dir is  {} parent_file_id is {}", self.parent_dir.to_string_lossy().to_string(), &self.parent_file_id.to_string());
-                self.fs.list_files_and_cache(self.parent_dir.to_string_lossy().to_string(), self.parent_file_id.to_string());
+                self.fs.list_files_and_cache(self.parent_dir.to_string_lossy().to_string(), self.parent_file_id.to_string()).await.unwrap();
             }
             self.upload_state.chunk += 1;
         }
@@ -1628,144 +1629,4 @@ fn is_url_expired(url: &str) -> bool {
         }
     }
     false
-}
-
-
-
-fn sign(token: &str, cid: &str, time: i64) -> String {
-    let s = format!("{}{}{}", token, cid, time);
-    let haser1 = to_md5(&s);
-    let haser2 = to_md5(&haser1);
-    haser2
-}
-
-fn to_md5(param_string: &str) -> String {
-    let mut string_buffer = String::new();
-    let mut hasher = Md5::new();
-    hasher.update(param_string.as_bytes());
-    let array_of_byte = hasher.finalize();
-    for b in array_of_byte.iter() {
-        let b1 = *b as i32;
-        let i = if b1 < 0 { b1 + 256 } else { b1 };
-        let _ = write!(string_buffer, "{:02x}", i);
-    }
-    string_buffer
-}
-
-fn get_time_in_millis(i: i64, i2: i64) -> i64 {
-    let now = SystemTime::now();
-    let seconds:u64 = (i * 86400 + i2 * 3600) as u64;
-    let duration = std::time::Duration::new(seconds, 0);
-    let new_time = now + duration;
-    let since_epoch = new_time.duration_since(UNIX_EPOCH).unwrap();
-    since_epoch.as_secs() as i64
-}
-
-
-fn get_file_sha1(body: Bytes) -> String {
-    let mut hasher = Sha1::default();
-    hasher.update(body);
-    // let hash_code = hasher.finalize();
-    //let file_hash = format!("{:X}",&hash_code);
-    let result = hasher.finalize();
-    let mut result_string = String::new();
-    for byte in result.iter() {
-        write!(result_string, "{:02x}", byte).unwrap();
-    }
-    result_string
-}
-
-
-fn get_file_type(file_name: &str) -> i32 {
-    let mut map = HashMap::new();
-    map.insert("txt", 1);
-    map.insert("jpeg", 2);
-    map.insert("jpg", 2);
-    map.insert("gif", 2);
-    map.insert("bmp", 2);
-    map.insert("png", 2);
-    map.insert("avif", 2);
-    map.insert("heic", 2);
-    map.insert("mp4", 3);
-    map.insert("mkv", 3);
-    map.insert("m4u", 3);
-    map.insert("m4v", 3);
-    map.insert("mov", 3);
-    map.insert(".3gp", 3);
-    map.insert("asf", 3);
-    map.insert("avi", 3);
-    map.insert("wmv", 3);
-    map.insert("flv", 3);
-    map.insert("mpe", 3);
-    map.insert("mpeg", 3);
-    map.insert("mpg", 3);
-    map.insert("mpg4", 3);
-    map.insert("mpeg4", 3);
-    map.insert("mpga", 3);
-    map.insert("rmvb", 3);
-    map.insert("rm", 3);
-    map.insert("aac", 4);
-    map.insert("ogg", 4);
-    map.insert("wav", 4);
-    map.insert("wma", 4);
-    map.insert("m3u", 4);
-    map.insert("m4a", 4);
-    map.insert("m4b", 4);
-    map.insert("m4p", 4);
-    map.insert("m4r", 4);
-    map.insert("mp2", 4);
-    map.insert("mp3", 4);
-    map.insert("bin", 5);
-    map.insert("class", 5);
-    map.insert("conf", 5);
-    map.insert("cpp", 5);
-    map.insert("c", 5);
-    map.insert("exe", 5);
-    map.insert("gtar", 5);
-    map.insert("gz", 5);
-    map.insert("h", 5);
-    map.insert("htm", 5);
-    map.insert("html", 5);
-    map.insert("jar", 5);
-    map.insert("java", 5);
-    map.insert("js", 5);
-    map.insert("log", 5);
-    map.insert("mpc", 5);
-    map.insert("msg", 5);
-    map.insert("pps", 5);
-    map.insert("prop", 5);
-    map.insert("rc", 5);
-    map.insert("rtf", 5);
-    map.insert("sh", 5);
-    map.insert("tar", 5);
-    map.insert("tgz", 5);
-    map.insert("wps", 5);
-    map.insert("xml", 5);
-    map.insert("z", 5);
-    map.insert("zip", 5);
-    map.insert("apk", 5);
-    map.insert("exe", 5);
-    map.insert("ipa", 5);
-    map.insert("app", 5);
-    map.insert("hap", 5);
-    map.insert("docx", 6);
-    map.insert("doc", 6);
-    map.insert("xls", 7);
-    map.insert("xlsx", 7);
-    map.insert("ppt", 8);
-    map.insert("pptx", 8);
-    map.insert("pdf", 9);
-    map.insert("epub", 11);
-    let file_ext = get_file_extension_name(file_name);
-    match map.get(&file_ext as &str) {
-        Some(file_type) => *file_type,
-        None => 5,
-    }
-}
-
-fn get_file_extension_name(file_name: &str) -> String {
-    match file_name.rfind('.') {
-        Some(index) => file_name[index + 1..].to_string(),
-        None => "".to_string(),
-    }
 }

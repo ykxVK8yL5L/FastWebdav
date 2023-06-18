@@ -1,8 +1,5 @@
 use std::collections::BTreeMap;
-use hex_literal::hex;
 use sha2::{Sha256 as MSha256,Digest as MDigest};
-use aes::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
-use aes::Aes128;
 
 const SOURCE: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-~+";
 
@@ -61,60 +58,60 @@ impl MixBase64 {
         }
     }
 
-    pub fn encode(&self,password:&str) -> String {
-        let buffer: &[u8] = password.as_bytes();
-        let CHARS:Vec<char>= self.secret.chars().collect();
-        let mut result = String::new();
-        let mut arr: &[u8]=&buffer[0..];
-        let mut bt: [u8; 3] = [0, 0, 0];
-        let mut char: String;
+    // pub fn encode(&self,password:&str) -> String {
+    //     let buffer: &[u8] = password.as_bytes();
+    //     let CHARS:Vec<char>= self.secret.chars().collect();
+    //     let mut result = String::new();
+    //     let mut arr: &[u8]=&buffer[0..];
+    //     let mut bt: [u8; 3] = [0, 0, 0];
+    //     let mut char: String;
 
-        for i in (0..buffer.len()).step_by(3) {
-            if i + 3 > buffer.len() {
-                arr = &buffer[i..];
-                break;
-            }
-            bt = [buffer[i], buffer[i+1], buffer[i+2]];
-            char = format!("{}{}{}{}", 
-                    CHARS[(bt[0] >> 2) as usize],
-                    CHARS[ (((bt[0] & 3) << 4) | (bt[1] >> 4)) as usize],
-                    CHARS[ (((bt[1] & 15) << 2) | (bt[2] >> 6)) as usize],
-                    CHARS[(bt[2] & 63) as usize]);
-            result.push_str(&char);
-        }
-        if buffer.len() % 3 == 1 {
-            char = format!("{}{}{}{}", 
-                    CHARS[(arr[0] >> 2) as usize],
-                    CHARS[((arr[0] & 3) << 4) as usize],
-                    CHARS[64],
-                    CHARS[64]);
-            result.push_str(&char);
-        } else if buffer.len() % 3 == 2 {
-            char = format!("{}{}{}{}", 
-                    CHARS[(arr[0] >> 2) as usize],
-                    CHARS[ (((arr[0] & 3) << 4) | (arr[1] >> 4)) as usize],
-                    CHARS[((arr[1] & 15) << 2) as usize],
-                    CHARS[64]);
-            result.push_str(&char);
-        }
-        return result;
-    }
+    //     for i in (0..buffer.len()).step_by(3) {
+    //         if i + 3 > buffer.len() {
+    //             arr = &buffer[i..];
+    //             break;
+    //         }
+    //         bt = [buffer[i], buffer[i+1], buffer[i+2]];
+    //         char = format!("{}{}{}{}", 
+    //                 CHARS[(bt[0] >> 2) as usize],
+    //                 CHARS[ (((bt[0] & 3) << 4) | (bt[1] >> 4)) as usize],
+    //                 CHARS[ (((bt[1] & 15) << 2) | (bt[2] >> 6)) as usize],
+    //                 CHARS[(bt[2] & 63) as usize]);
+    //         result.push_str(&char);
+    //     }
+    //     if buffer.len() % 3 == 1 {
+    //         char = format!("{}{}{}{}", 
+    //                 CHARS[(arr[0] >> 2) as usize],
+    //                 CHARS[((arr[0] & 3) << 4) as usize],
+    //                 CHARS[64],
+    //                 CHARS[64]);
+    //         result.push_str(&char);
+    //     } else if buffer.len() % 3 == 2 {
+    //         char = format!("{}{}{}{}", 
+    //                 CHARS[(arr[0] >> 2) as usize],
+    //                 CHARS[ (((arr[0] & 3) << 4) | (arr[1] >> 4)) as usize],
+    //                 CHARS[((arr[1] & 15) << 2) as usize],
+    //                 CHARS[64]);
+    //         result.push_str(&char);
+    //     }
+    //     return result;
+    // }
 
 
     pub fn decode(&self,base64_str: &str) -> String {
-        let chars=&self.secret;
-        let CHARS:Vec<char>= self.secret.chars().collect();
+        let secret=&self.secret;
+        let chars:Vec<char>= self.secret.chars().collect();
         let mut map_chars = BTreeMap::new();
-        for (index, element) in CHARS.iter().enumerate() {
+        for (index, element) in chars.iter().enumerate() {
             map_chars.insert(*element, index);
         }
-        let mut size = (base64_str.len() / 4) * 3;
-        let mut j = 0;
-        if let Some(_) = base64_str.find(&format!("{}{}", chars.chars().nth(64).unwrap(), chars.chars().nth(64).unwrap())) {
-            size -= 2;
-        } else if let Some(_) = base64_str.find(chars.chars().nth(64).unwrap()) {
-            size -= 1;
-        }
+        // let mut size = (base64_str.len() / 4) * 3;
+        // let mut j = 0;
+        // if let Some(_) = base64_str.find(&format!("{}{}", secret.chars().nth(64).unwrap(), secret.chars().nth(64).unwrap())) {
+        //     size -= 2;
+        // } else if let Some(_) = base64_str.find(secret.chars().nth(64).unwrap()) {
+        //     size -= 1;
+        // }
    
         let mut buffer: Vec<u8> = Vec::new();
         let mut i: usize = 0;

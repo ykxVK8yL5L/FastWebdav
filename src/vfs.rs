@@ -293,7 +293,15 @@ impl WebdavDriveFileSystem {
             file:file.clone()
         };
         let remove_url = format!("{}{}/remove_file",API_URL,file.clone().provider.unwrap()); 
-        let removed_file:WebdavFile = match self.post_request(remove_url, &remove_req).await{
+        //  下面的方法返回删除的文件，以下的重命名和移动都一样
+        // let removed_file:WebdavFile = match self.post_request(remove_url, &remove_req).await{
+        //     Ok(res)=>res.unwrap(),
+        //     Err(err)=>{
+        //         error!("删除文件失败: {:?}", err);
+        //         panic!("删除文件失败: {:?}", err)
+        //     }
+        // };
+        match self.post_request(remove_url, &remove_req).await{
             Ok(res)=>res.unwrap(),
             Err(err)=>{
                 error!("删除文件失败: {:?}", err);
@@ -309,7 +317,7 @@ impl WebdavDriveFileSystem {
             new_name:new_name,
         };
         let rename_url = format!("{}{}/rename_file",API_URL,file.clone().provider.unwrap()); 
-        let renamed_file:WebdavFile = match self.post_request(rename_url, &rename_req).await{
+        match self.post_request(rename_url, &rename_req).await{
             Ok(res)=>res.unwrap(),
             Err(err)=>{
                 error!("重命名文件失败: {:?}", err);
@@ -326,7 +334,7 @@ impl WebdavDriveFileSystem {
             new_parent_id:new_parent_id,
         };
         let move_url = format!("{}{}/move_file",API_URL,file.clone().provider.unwrap()); 
-        let moved_file:WebdavFile = match self.post_request(move_url, &move_req).await{
+        match self.post_request(move_url, &move_req).await{
             Ok(res)=>res.unwrap(),
             Err(err)=>{
                 error!("重命名文件失败: {:?}", err);
@@ -342,7 +350,7 @@ impl WebdavDriveFileSystem {
             new_parent_id:new_parent_id,
         };
         let copy_url = format!("{}{}/copy_file",API_URL,file.clone().provider.unwrap()); 
-        let copyied_file:WebdavFile = match self.post_request(copy_url, &copy_req).await{
+        match self.post_request(copy_url, &copy_req).await{
             Ok(res)=>res.unwrap(),
             Err(err)=>{
                 error!("重命名文件失败: {:?}", err);
@@ -404,7 +412,7 @@ impl WebdavDriveFileSystem {
             Ok(file_list)
         }else{
             let aes_decoder = AesCTR::new(&password,"0");
-            let decoder = MixBase64::new(&aes_decoder.passwdOutward);
+            let decoder = MixBase64::new(&aes_decoder.passwd_outward);
             for file in &file_list  {
                 let decode_str =  match file.name.rfind('.') {
                     Some(index) => file.name[0..index-1].to_string(),
@@ -1514,6 +1522,7 @@ impl DavFile for FastDavFile {
         debug!(
             file_id = %self.file.id,
             file_name = %self.file.name,
+            file_size = %self.file.size,
             pos = self.current_pos,
             download_url = self.download_url,
             count = count,
@@ -1556,6 +1565,9 @@ impl DavFile for FastDavFile {
                     let mut decoder = AesCTR::new(&password,&self.file.size);
                     decoder.set_position(self.current_pos as usize);
                     decoder.decrypt(&mut data);
+                    println!("aes key is:{}",hex::encode(decoder.key));
+                    println!("current pos is :{}",self.current_pos);
+                    println!("pos iv is:{}",hex::encode(decoder.iv));
                     let okbytes = Bytes::from(data);
                     self.current_pos += okbytes.len() as u64;
                     self.download_url = Some(download_url);

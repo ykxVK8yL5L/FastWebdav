@@ -1,7 +1,6 @@
 use std::path::Path;
 use std::time::Duration;
 
-use anyhow::Error;
 use moka::future::{Cache as MokaCache, CacheBuilder};
 use tracing::{trace,debug};
 
@@ -31,18 +30,19 @@ impl Cache {
         self.inner.insert(key, value).await;
     }
 
-    pub async fn set_download_url(&self,parent_key:String, key: String, download_url:String ) {
-        trace!(key = %key, "修改文件的下载地址");
-        debug!(download_url = %download_url,"修改文件的下载地址");
-        let mut files = self.inner.get(&parent_key).unwrap();
-        for element in files.iter_mut() {
-            if element.id == key {
-                element.download_url = Some(download_url);
-                break;
-            }
-        }
-        self.inner.insert(parent_key, files).await;
-    }
+    // 设置文件的下载地址
+    // pub async fn set_download_url(&self,parent_key:String, key: String, download_url:String ) {
+    //     trace!(key = %key, "修改文件的下载地址");
+    //     debug!(download_url = %download_url,"修改文件的下载地址");
+    //     let mut files = self.inner.get(&parent_key).unwrap();
+    //     for element in files.iter_mut() {
+    //         if element.id == key {
+    //             element.download_url = Some(download_url);
+    //             break;
+    //         }
+    //     }
+    //     self.inner.insert(parent_key, files).await;
+    // }
 
 
     // pub async fn find_file_in_cache(&self,parent_key:&str, key: &str)-> Option<WebdavFile> {

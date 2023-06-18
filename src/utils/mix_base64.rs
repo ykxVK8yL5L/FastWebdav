@@ -99,7 +99,7 @@ impl MixBase64 {
 
 
     pub fn decode(&self,base64_str: &str) -> String {
-        let secret=&self.secret;
+        //let secret=&self.secret;
         let chars:Vec<char>= self.secret.chars().collect();
         let mut map_chars = BTreeMap::new();
         for (index, element) in chars.iter().enumerate() {
@@ -115,8 +115,6 @@ impl MixBase64 {
    
         let mut buffer: Vec<u8> = Vec::new();
         let mut i: usize = 0;
-        let mut j: usize = 0;
-    
     
         while i < base64_str.len() {
             let enc1: u8 = *map_chars.get(&base64_str.chars().nth(i).unwrap()).unwrap() as u8;
@@ -124,14 +122,11 @@ impl MixBase64 {
             let enc3: u8 = *map_chars.get(&base64_str.chars().nth(i+2).unwrap()).unwrap() as u8;
             let enc4: u8 = *map_chars.get(&base64_str.chars().nth(i+3).unwrap()).unwrap() as u8;
             buffer.push((enc1 << 2) | (enc2 >> 4));
-            j += 1;
             if enc3 != 64 {
                 buffer.push(((enc2 & 15) << 4) | (enc3 >> 2));
-                j += 1;
             }
             if enc4 != 64 {
                 buffer.push(((enc3 & 3) << 6) | enc4);
-                j += 1;
             }
             i += 4;
         }

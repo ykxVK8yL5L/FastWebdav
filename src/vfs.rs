@@ -1555,7 +1555,6 @@ impl DavFile for FastDavFile {
                     let mut data = content.to_vec();
                     let mut decoder = AesCTR::new(&password,&self.file.size);
                     decoder.set_position(self.current_pos as usize);
-                    //println!("fuck iv is {}",hex::encode(decoder.iv));
                     decoder.decrypt(&mut data);
                     let okbytes = Bytes::from(data);
                     self.current_pos += okbytes.len() as u64;

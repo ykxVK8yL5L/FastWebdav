@@ -32,8 +32,11 @@ name = meting
 provider = NeteaseCloudMusic(provider="neteasecloud",playlist_id='577991289',count=50)
 name = neteasecloud
 [gofile]
-provider = GoFile(provider="gofile",token="XXXXXXXXXXXXXXXXXXXXX",contentId='XXXXXXXXXXXXXXXXXXXXX')
+provider = GoFile(provider="gofile",token="XXXXXXXXXXXXXXXXXXXXX",contentId='XXXXXXXXXXXXXXXXXXXXX',websiteToken='7fd94ds12fds4')
 name = gofile
+[filebin]
+provider = Filebin(provider="filebin",bin='XXXXXXXXXXXXXX')
+name = filebin
 ```
 上面的代码中定义了4个provider,里面是我内置的几个模型，其中meting是废的，由于接口没有提供size参数，固定了文件大小，再加上目前的接口基本无法提供完整数据仅供参考。   
 配置字段[tmplink]这是唯一值相当于一个模型实例的名称   

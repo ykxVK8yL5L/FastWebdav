@@ -52,8 +52,15 @@ impl AesCTR {
         }
     }
 
-    pub fn decrypt(&mut self, mut buf:&mut Vec<u8>){
-        self.cipher.apply_keystream(&mut buf)
+    pub fn encrypt(&mut self, message_bytes: Vec<u8>)->Vec<u8>{
+        let mut encrypted_buffer = message_bytes;
+        self.cipher.apply_keystream(&mut encrypted_buffer);
+        encrypted_buffer
+    }
+    pub fn decrypt(&mut self, cipher_bytes: Vec<u8>)->Vec<u8>{
+        let mut decrypted_buffer = cipher_bytes;
+        self.cipher.apply_keystream(&mut decrypted_buffer);
+        decrypted_buffer
     }
 
     // pub fn decryptb2b(&mut self, content:Vec<u8>, mut buf:&mut Vec<u8>)->Result<(), cipher::StreamCipherError>{
@@ -64,6 +71,9 @@ impl AesCTR {
         let increment = position / 16;
         self.increment_iv(increment as u32);
         self.cipher = Aes128Ctr128BE::new(&self.key.into(), &self.iv.into());
+        let offset = position%16;
+        let buffer = vec![0u8; offset]; 
+        self.encrypt(buffer);
     }
 
     fn increment_iv(&mut self, increment: u32) {

@@ -1559,14 +1559,14 @@ impl DavFile for FastDavFile {
                     FsError::NotFound
                 })?;
 
-
             match &self.file.password {
                 Some(password)=>{
-                    let mut data = content.to_vec();
                     let mut decoder = AesCTR::new(&password,&self.file.size);
-                    decoder.set_position(self.current_pos as usize);
-                    decoder.decrypt(&mut data);
-                    let okbytes = Bytes::from(data);
+                    if self.current_pos != 0 {
+                        decoder.set_position(self.current_pos as usize);
+                    }
+                    let okdata = decoder.decrypt(content.to_vec());
+                    let okbytes = Bytes::from(okdata);
                     self.current_pos += okbytes.len() as u64;
                     self.download_url = Some(download_url);
                     Ok(okbytes)

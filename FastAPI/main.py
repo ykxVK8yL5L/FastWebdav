@@ -5,7 +5,7 @@ import configparser
 from fastapi import FastAPI,APIRouter,Request,Query,Path,Request,File,Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import StreamingResponse,HTMLResponse
+from fastapi.responses import StreamingResponse,HTMLResponse,FileResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import parse_obj_as
 from models import *

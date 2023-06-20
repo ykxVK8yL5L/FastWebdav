@@ -15,6 +15,7 @@ class DavFile(BaseModel):
     sha1: Optional[str] = Field(title="文件sha1",description="文件sha1，可选")  
     download_url: Optional[str] = Field(title="文件下载链接",description="文件下载链接，有些可以在列表页算出来的就不需要请求了，可以添加?x-oss-expires=时间戳 来控制过期时间，如果rust的缓存时间先到以缓存时间为准")  #
     play_headers: Optional[str] = Field(title="播放文件的header信息",description="播放文件的header信息")  #
+    password: Optional[str] = Field(title="目录加密密码",description="目录加密密码")  #
     class Config:
         title = "DavFile:Webdav文件模型"
 

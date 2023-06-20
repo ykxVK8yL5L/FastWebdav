@@ -4,14 +4,13 @@ use std::fmt::{Debug, Formatter,Write};
 use std::io::SeekFrom;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::num::NonZeroU32;
 use std::time::{Duration,SystemTime, UNIX_EPOCH};
 use reqwest::multipart::{Form, Part};
 use tracing_subscriber::fmt::format;
 use url::Url;
 use base64::{encode, decode};
 use md5::{Md5, Digest as MDigest};
-use sha1::{Sha1};
+use sha1::{Sha1, Digest};
 use anyhow::{Result, Context, Error};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use dashmap::DashMap;
@@ -42,16 +41,6 @@ use quick_xml::{Writer, se};
 use quick_xml::se::Serializer as XmlSerializer;
 use serde_json::json;
 use reqwest::header::RANGE;
-
-use ring::digest::{SHA256, Digest};
-use ring::pbkdf2::{derive, PBKDF2_HMAC_SHA256};
-use ring::pbkdf2;
-use hex_literal::hex;
-use aes::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
-use aes::Aes128;
-
-type Aes128Ctr64BE = ctr::Ctr64BE<aes::Aes128>;
-
 
 pub use crate::model::*;
 
@@ -1382,7 +1371,7 @@ impl FastDavFile {
             };
 
 
-            println!("文件上传结果:{:?}",part);
+            debug!("文件上传结果:{:?}",part);
             debug!(chunk_count = %self.upload_state.chunk_count, current_chunk=current_chunk, "upload chunk info");
             if current_chunk == self.upload_state.chunk_count{
                 debug!(file_name = %self.file.name, "upload finished");
@@ -1462,34 +1451,6 @@ impl DavFile for FastDavFile {
             parent_id = %self.parent_file_id,
             "file: read_bytes",
         );
-
-        let filesize = &self.file.size;
-        
-
-        let password = "password";
-        let salt = "AES-CTR".as_bytes();
-        let iterations =NonZeroU32::new(1000).unwrap();;
-        let output_length = 16;
-        let mut out = vec![0; output_length];
-        pbkdf2::derive(
-            PBKDF2_HMAC_SHA256,
-            iterations,
-            &salt,
-            password.as_bytes(),
-            &mut out,
-        );
-    
-        let hex_result = hex::encode(out);
-        let passwdSalt = format!("{}{}",hex_result,filesize);
-        let mut hasher = Md5::new();
-        hasher.update(passwdSalt);
-        let key = hasher.clone().finalize();
-    
-        let mut ivhasher = Md5::new();
-        ivhasher.update(filesize.to_string());
-        let mut iv = ivhasher.finalize();
-        let mut cipher = Aes128Ctr64BE::new(&key.into(), &iv.into());
-
         async move {
             if self.file.id.is_empty() {
                 // upload in progress
@@ -1517,16 +1478,9 @@ impl DavFile for FastDavFile {
                     error!(url = %download_url, error = %err, "download file failed");
                     FsError::NotFound
                 })?;
-
-            let mut data = content.to_vec();
-            
-            
-            cipher.apply_keystream(&mut data);
-
-
             self.current_pos += content.len() as u64;
             self.download_url = Some(download_url);
-            Ok(Bytes::from(data))
+            Ok(content)
         }
         .boxed()
     }

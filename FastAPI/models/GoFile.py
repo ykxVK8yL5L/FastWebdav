@@ -17,17 +17,19 @@ class GoFile():
     '''
     https://gofile.io/:临时网盘
     '''
-    def __init__(self,provider='',token='',contentId=''):
+    def __init__(self,provider='',token='',contentId='',websiteToken=''):
         '''
         :param provider: 模型实例名称
         :param token: API token可在https://gofile.io/myProfile获得
         :param contentId: 文件夹ID即网址后面的字符串
+        :param websiteToken: 用来访问API的临时token有时效性
         '''
         # 创建配置文件对象
         self.config = configparser.SafeConfigParser()
         self.provider = provider
         self.token = token
         self.contentId = contentId
+        self.websiteToken = websiteToken
         self.cache = SimpleCache()
         # 防止请求过于频繁，用于请求间隔时间
         self.sleep_time = 0.005
@@ -47,7 +49,7 @@ class GoFile():
         # 如果缓存中没有结果，则重新请求并缓存结果
         if not file_list:
             file_list = []
-            url = f"https://api.gofile.io/getContent?contentId={folderId}&token={self.token}&websiteToken=7fd94ds12fds4"
+            url = f"https://api.gofile.io/getContent?contentId={folderId}&token={self.token}&websiteToken={self.websiteToken}"
             try:
                 response = requests.get(url, verify=False, headers=self.headers, timeout=100)
                 # 如果请求失败，则抛出异常

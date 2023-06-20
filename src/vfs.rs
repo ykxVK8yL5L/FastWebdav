@@ -1,4 +1,4 @@
-use std::str;
+use std::{str, result};
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter,Write};
 use std::io::SeekFrom;
@@ -10,7 +10,7 @@ use tracing_subscriber::fmt::format;
 use url::Url;
 use base64::{encode, decode};
 use md5::{Md5, Digest as MDigest};
-use sha1::{Sha1, Digest};
+use sha1::{Sha1};
 use anyhow::{Result, Context, Error};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use dashmap::DashMap;
@@ -24,6 +24,7 @@ use dav_server::{
     },
 };
 use moka::future::{Cache as AuthCache};
+use crate::utils::{mix_base64::MixBase64,aesctr::AesCTR};
 use crate::cache::Cache;
 use reqwest::{
     header::{HeaderMap, HeaderName,HeaderValue},
@@ -41,6 +42,8 @@ use quick_xml::{Writer, se};
 use quick_xml::se::Serializer as XmlSerializer;
 use serde_json::json;
 use reqwest::header::RANGE;
+use ini::Ini;
+use regex::Regex;
 
 pub use crate::model::*;
 
@@ -61,6 +64,7 @@ pub struct WebdavDriveFileSystem {
     upload_buffer_size: usize,
     skip_upload_same_size: bool,
     prefer_http_download: bool,
+    encrypt_dirs: Option<Ini>,
 }
 impl WebdavDriveFileSystem {
     pub async fn new(
@@ -87,6 +91,13 @@ impl WebdavDriveFileSystem {
 
 
         let auth_cache = AuthCache::new(2);
+        let dirs_config: Option<Ini> = match Ini::load_from_file("configs/encrypt_dirs.ini"){
+            Ok(res)=>Some(res),
+            Err(err)=>{
+                error!("读取目录配置出错:{:?}",err);
+                None
+            }
+        };
 
         let driver: WebdavDriveFileSystem = Self {
             auth_cache,
@@ -97,6 +108,7 @@ impl WebdavDriveFileSystem {
             upload_buffer_size,
             skip_upload_same_size,
             prefer_http_download,
+            encrypt_dirs:dirs_config,
         };
 
         driver.dir_cache.invalidate_all();
@@ -281,7 +293,15 @@ impl WebdavDriveFileSystem {
             file:file.clone()
         };
         let remove_url = format!("{}{}/remove_file",API_URL,file.clone().provider.unwrap()); 
-        let removed_file:WebdavFile = match self.post_request(remove_url, &remove_req).await{
+        //  下面的方法返回删除的文件，以下的重命名和移动都一样
+        // let removed_file:WebdavFile = match self.post_request(remove_url, &remove_req).await{
+        //     Ok(res)=>res.unwrap(),
+        //     Err(err)=>{
+        //         error!("删除文件失败: {:?}", err);
+        //         panic!("删除文件失败: {:?}", err)
+        //     }
+        // };
+        match self.post_request(remove_url, &remove_req).await{
             Ok(res)=>res.unwrap(),
             Err(err)=>{
                 error!("删除文件失败: {:?}", err);
@@ -297,7 +317,7 @@ impl WebdavDriveFileSystem {
             new_name:new_name,
         };
         let rename_url = format!("{}{}/rename_file",API_URL,file.clone().provider.unwrap()); 
-        let renamed_file:WebdavFile = match self.post_request(rename_url, &rename_req).await{
+        match self.post_request(rename_url, &rename_req).await{
             Ok(res)=>res.unwrap(),
             Err(err)=>{
                 error!("重命名文件失败: {:?}", err);
@@ -314,7 +334,7 @@ impl WebdavDriveFileSystem {
             new_parent_id:new_parent_id,
         };
         let move_url = format!("{}{}/move_file",API_URL,file.clone().provider.unwrap()); 
-        let moved_file:WebdavFile = match self.post_request(move_url, &move_req).await{
+        match self.post_request(move_url, &move_req).await{
             Ok(res)=>res.unwrap(),
             Err(err)=>{
                 error!("重命名文件失败: {:?}", err);
@@ -330,7 +350,7 @@ impl WebdavDriveFileSystem {
             new_parent_id:new_parent_id,
         };
         let copy_url = format!("{}{}/copy_file",API_URL,file.clone().provider.unwrap()); 
-        let copyied_file:WebdavFile = match self.post_request(copy_url, &copy_req).await{
+        match self.post_request(copy_url, &copy_req).await{
             Ok(res)=>res.unwrap(),
             Err(err)=>{
                 error!("重命名文件失败: {:?}", err);
@@ -346,7 +366,16 @@ impl WebdavDriveFileSystem {
 
     async fn list_files_and_cache( &self, path_str: String, parent_file_id: String)-> Result<Vec<WebdavFile>>{
         info!(path = %path_str, parent_id=%parent_file_id,"cache dir");
+        let password :String= match &self.encrypt_dirs {
+            Some(result)=>{
+                self.get_password_by_path(&path_str,result)
+            },
+            None=>{
+                "".to_string()
+            }
+        };
         let req:FilesListRequest=FilesListRequest {path_str:json!(path_str),parent_file_id:json!(parent_file_id)}; 
+        let mut return_list:Vec<WebdavFile>=vec![];
         let mut file_list:Vec<WebdavFile>=vec![];
         if parent_file_id == '0'.to_string() && path_str == '/'.to_string() {
             let list_url = API_URL.to_string();
@@ -376,9 +405,28 @@ impl WebdavDriveFileSystem {
             };
             file_list.extend(files);
         }   
-        
-        self.cache_dir(path_str,file_list.clone()).await;
-        Ok(file_list)
+
+    
+        if password.is_empty() {
+            self.cache_dir(path_str,file_list.clone()).await;
+            Ok(file_list)
+        }else{
+            let aes_decoder = AesCTR::new(&password,"0");
+            let decoder = MixBase64::new(&aes_decoder.passwd_outward);
+            for file in &file_list  {
+                let decode_str =  match file.name.rfind('.') {
+                    Some(index) => file.name[0..index-1].to_string(),
+                    None => "".to_string(),
+                };
+                let real_name = decoder.decode(&decode_str);
+                let mut return_file = file.clone();
+                return_file.name = real_name;
+                return_file.password = Some(password.to_string());
+                return_list.push(return_file.clone());
+            }
+            self.cache_dir(path_str,return_list.clone()).await;
+            Ok(return_list)
+        }
 
     }
 
@@ -500,7 +548,35 @@ impl WebdavDriveFileSystem {
         }
     
     }
-
+   
+    pub fn get_password_by_path(&self,path:&str,ini:&Ini)->String{
+        //请求的目录路径后面不带反斜杠，自动追回 以配置目录开头即用满足要求
+        let find_path = format!("{}/",path);
+        let mut password = "".to_string();
+        for (sec, prop) in ini.iter() {
+            match sec {
+                Some(section)=>{
+                    if find_path.starts_with(&section) {
+                        match prop.get("password") {
+                            Some(res)=>{
+                                password=res.to_owned();
+                                break;
+                            },
+                            None=>{
+                                password="".to_string();
+                            }
+                        }
+                    }else {
+                        password="".to_string();
+                    }
+                },
+                None=>{
+                    password="".to_string();
+                }
+            };
+        };
+        password
+    }
 
     async fn get_file(&self, path: PathBuf) -> Result<Option<WebdavFile>, FsError> {
 
@@ -827,6 +903,7 @@ impl DavFileSystem for WebdavDriveFileSystem {
                     download_url:None,
                     sha1:Some(file_hash),
                     play_headers:None,
+                    password:None,
                 };
                 let mut uploading = self.uploading.entry(parent_file.id.clone()).or_default();
                 uploading.push(file.clone());
@@ -1343,7 +1420,7 @@ impl FastDavFile {
                 self.upload_state.chunk_count
             );
             let upload_data = chunk_data.freeze();
-            let mut oss_args = match self.upload_state.oss_args.clone() {
+            let oss_args = match self.upload_state.oss_args.clone() {
                 Some(oss_args) => oss_args,
                 None => {
                     error!(file_name = %self.file.name, "获取文件上传信息错误");
@@ -1375,17 +1452,18 @@ impl FastDavFile {
             debug!(chunk_count = %self.upload_state.chunk_count, current_chunk=current_chunk, "upload chunk info");
             if current_chunk == self.upload_state.chunk_count{
                 debug!(file_name = %self.file.name, "upload finished");
-                let mut buffer = Vec::new();
-                let mut ser = XmlSerializer::with_root(Writer::new_with_indent(&mut buffer, b' ', 4), Some("CompleteMultipartUpload"));
+                let buffer = Vec::new();
+                //let mut ser = XmlSerializer::with_root(Writer::new_with_indent(&mut buffer, b' ', 4), Some("CompleteMultipartUpload"));
                 //self.upload_state.upload_tags.serialize(&mut ser).unwrap();
                 let upload_tags = String::from_utf8(buffer).unwrap();
-                self.fs.complete_upload(&self.file,upload_tags,&oss_args,&self.upload_state.upload_id).await;
+                self.fs.complete_upload(&self.file,upload_tags,&oss_args,&self.upload_state.upload_id).await.unwrap();
+                self.upload_state.buffer.clear();
                 self.upload_state = UploadState::default();
                 // self.upload_state.buffer.clear();
                 // self.upload_state.chunk = 0;
                 self.fs.dir_cache.invalidate(&self.parent_dir).await;
                 info!("parent dir is  {} parent_file_id is {}", self.parent_dir.to_string_lossy().to_string(), &self.parent_file_id.to_string());
-                self.fs.list_files_and_cache(self.parent_dir.to_string_lossy().to_string(), self.parent_file_id.to_string());
+                self.fs.list_files_and_cache(self.parent_dir.to_string_lossy().to_string(), self.parent_file_id.to_string()).await.unwrap();
             }
             self.upload_state.chunk += 1;
         }
@@ -1445,12 +1523,15 @@ impl DavFile for FastDavFile {
         debug!(
             file_id = %self.file.id,
             file_name = %self.file.name,
+            file_size = %self.file.size,
             pos = self.current_pos,
             download_url = self.download_url,
             count = count,
             parent_id = %self.parent_file_id,
             "file: read_bytes",
         );
+
+     
         async move {
             if self.file.id.is_empty() {
                 // upload in progress
@@ -1469,7 +1550,6 @@ impl DavFile for FastDavFile {
                 self.get_download_url(&self.parent_dir).await?
             };
 
-            
             let content = self
                 .fs
                 .download(&download_url,self.file.clone().play_headers, self.current_pos, count)
@@ -1478,9 +1558,27 @@ impl DavFile for FastDavFile {
                     error!(url = %download_url, error = %err, "download file failed");
                     FsError::NotFound
                 })?;
-            self.current_pos += content.len() as u64;
-            self.download_url = Some(download_url);
-            Ok(content)
+
+            match &self.file.password {
+                Some(password)=>{
+                    let mut decoder = AesCTR::new(&password,&self.file.size);
+                    if self.current_pos != 0 {
+                        decoder.set_position(self.current_pos as usize);
+                    }
+                    let okdata = decoder.decrypt(content.to_vec());
+                    let okbytes = Bytes::from(okdata);
+                    self.current_pos += okbytes.len() as u64;
+                    self.download_url = Some(download_url);
+                    Ok(okbytes)
+                },
+                None=>{
+                    self.current_pos += content.len() as u64;
+                    self.download_url = Some(download_url);
+                    Ok(content)
+                }
+            }
+
+
         }
         .boxed()
     }
@@ -1528,144 +1626,4 @@ fn is_url_expired(url: &str) -> bool {
         }
     }
     false
-}
-
-
-
-fn sign(token: &str, cid: &str, time: i64) -> String {
-    let s = format!("{}{}{}", token, cid, time);
-    let haser1 = to_md5(&s);
-    let haser2 = to_md5(&haser1);
-    haser2
-}
-
-fn to_md5(param_string: &str) -> String {
-    let mut string_buffer = String::new();
-    let mut hasher = Md5::new();
-    hasher.update(param_string.as_bytes());
-    let array_of_byte = hasher.finalize();
-    for b in array_of_byte.iter() {
-        let b1 = *b as i32;
-        let i = if b1 < 0 { b1 + 256 } else { b1 };
-        let _ = write!(string_buffer, "{:02x}", i);
-    }
-    string_buffer
-}
-
-fn get_time_in_millis(i: i64, i2: i64) -> i64 {
-    let now = SystemTime::now();
-    let seconds:u64 = (i * 86400 + i2 * 3600) as u64;
-    let duration = std::time::Duration::new(seconds, 0);
-    let new_time = now + duration;
-    let since_epoch = new_time.duration_since(UNIX_EPOCH).unwrap();
-    since_epoch.as_secs() as i64
-}
-
-
-fn get_file_sha1(body: Bytes) -> String {
-    let mut hasher = Sha1::default();
-    hasher.update(body);
-    // let hash_code = hasher.finalize();
-    //let file_hash = format!("{:X}",&hash_code);
-    let result = hasher.finalize();
-    let mut result_string = String::new();
-    for byte in result.iter() {
-        write!(result_string, "{:02x}", byte).unwrap();
-    }
-    result_string
-}
-
-
-fn get_file_type(file_name: &str) -> i32 {
-    let mut map = HashMap::new();
-    map.insert("txt", 1);
-    map.insert("jpeg", 2);
-    map.insert("jpg", 2);
-    map.insert("gif", 2);
-    map.insert("bmp", 2);
-    map.insert("png", 2);
-    map.insert("avif", 2);
-    map.insert("heic", 2);
-    map.insert("mp4", 3);
-    map.insert("mkv", 3);
-    map.insert("m4u", 3);
-    map.insert("m4v", 3);
-    map.insert("mov", 3);
-    map.insert(".3gp", 3);
-    map.insert("asf", 3);
-    map.insert("avi", 3);
-    map.insert("wmv", 3);
-    map.insert("flv", 3);
-    map.insert("mpe", 3);
-    map.insert("mpeg", 3);
-    map.insert("mpg", 3);
-    map.insert("mpg4", 3);
-    map.insert("mpeg4", 3);
-    map.insert("mpga", 3);
-    map.insert("rmvb", 3);
-    map.insert("rm", 3);
-    map.insert("aac", 4);
-    map.insert("ogg", 4);
-    map.insert("wav", 4);
-    map.insert("wma", 4);
-    map.insert("m3u", 4);
-    map.insert("m4a", 4);
-    map.insert("m4b", 4);
-    map.insert("m4p", 4);
-    map.insert("m4r", 4);
-    map.insert("mp2", 4);
-    map.insert("mp3", 4);
-    map.insert("bin", 5);
-    map.insert("class", 5);
-    map.insert("conf", 5);
-    map.insert("cpp", 5);
-    map.insert("c", 5);
-    map.insert("exe", 5);
-    map.insert("gtar", 5);
-    map.insert("gz", 5);
-    map.insert("h", 5);
-    map.insert("htm", 5);
-    map.insert("html", 5);
-    map.insert("jar", 5);
-    map.insert("java", 5);
-    map.insert("js", 5);
-    map.insert("log", 5);
-    map.insert("mpc", 5);
-    map.insert("msg", 5);
-    map.insert("pps", 5);
-    map.insert("prop", 5);
-    map.insert("rc", 5);
-    map.insert("rtf", 5);
-    map.insert("sh", 5);
-    map.insert("tar", 5);
-    map.insert("tgz", 5);
-    map.insert("wps", 5);
-    map.insert("xml", 5);
-    map.insert("z", 5);
-    map.insert("zip", 5);
-    map.insert("apk", 5);
-    map.insert("exe", 5);
-    map.insert("ipa", 5);
-    map.insert("app", 5);
-    map.insert("hap", 5);
-    map.insert("docx", 6);
-    map.insert("doc", 6);
-    map.insert("xls", 7);
-    map.insert("xlsx", 7);
-    map.insert("ppt", 8);
-    map.insert("pptx", 8);
-    map.insert("pdf", 9);
-    map.insert("epub", 11);
-    let file_ext = get_file_extension_name(file_name);
-    match map.get(&file_ext as &str) {
-        Some(file_type) => *file_type,
-        None => 5,
-    }
-}
-
-fn get_file_extension_name(file_name: &str) -> String {
-    match file_name.rfind('.') {
-        Some(index) => file_name[index + 1..].to_string(),
-        None => "".to_string(),
-    }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "fast-webdav"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -21,7 +21,7 @@ tokio = { version = "1", features = ["full"] }
 serde = { version = "=1.0", features = ["derive"] }
 serde_json = "=1.0"
 serde_yaml = "0.9"
-config = "0.11"
+rust-ini = "0.19.0"
 quick-xml = { version = "0.22", features = [ "serialize" ] }
 structopt = "=0.3.22"
 time = { version = "=0.3", features = ["formatting", "parsing"] }
@@ -35,7 +35,13 @@ hmac-sha = "0.6"
 base64 = "0.13.0"
 md-5 = "0.10.5"
 httpdate = "1.0.2"
-
+sha2 = "0.10.6"
+ring = "0.16.20"
+aes = "0.8"
+cipher = { version = "0.4.2", features = ["dev"] }
+ctr = "0.9.2"
+hex = "0.4.3"
+regex = "1.8.4"
 
 [features]
 default = ["rustls-tls", "atomic64"]

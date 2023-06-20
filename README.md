@@ -4,6 +4,11 @@
 之前的几个webdav项目都是通过原生rust实现，技术难度并不大，但是扩展性太差。后来想着用rust做个webdav然后数据通过api提供统一格式就可以自由的扩展了，所以才有了这个项目。
 说到数据Python是获取数据的最佳选择了。才用FastAPI负责后端数据提供。具体接口信息可以看下:8000/docs里面的接口文档。   
 # 使用
+## 加入解密功能，还不完善，稍后再细说 需要在configs目录新建 encrypt_dirs.ini内容为: 
+```
+[path] #加密路径，目前以starts_with进行判断
+password=123456  #加密密码
+```
 目前除了Docker还没有其它渠道使用该项目【 https://hub.docker.com/r/ykxvk8yl5l/fast-webdav 】  映射本地目录到/root/configs    
 如果本地部署fastapi建议使用以下命令启动
 ```
@@ -27,10 +32,13 @@ name = meting
 provider = NeteaseCloudMusic(provider="neteasecloud",playlist_id='577991289',count=50)
 name = neteasecloud
 [gofile]
-provider = GoFile(provider="gofile",token="XXXXXXXXXXXXXXXXXXXXX",contentId='XXXXXXXXXXXXXXXXXXXXX')
+provider = GoFile(provider="gofile",token="XXXXXXXXXXXXXXXXXXXXX",contentId='XXXXXXXXXXXXXXXXXXXXX',websiteToken='7fd94ds12fds4')
 name = gofile
+[filebin]
+provider = Filebin(provider="filebin",bin='XXXXXXXXXXXXXX')
+name = filebin
 ```
-上面的代码中定义了4个provider,里面是我内置的几个模型，其中meting是废的，由于接口没有提供size参数，固定了文件大小，再加上目前的接口基本无法提供完整数据仅供参考。   
+上面的代码中定义了几个provider,里面是我内置的几个模型，其中meting是废的，由于接口没有提供size参数，固定了文件大小，再加上目前的接口基本无法提供完整数据仅供参考。   
 配置字段[tmplink]这是唯一值相当于一个模型实例的名称   
 provider这个的定义就是一个模型实例的代码，通过eval将这个字段的值转换成一个类的实例，里面的配置和参数可以在models目录下的类里自己处理   
 name字段是要目录文件夹的显示名字【就当是文件夹名称吧】

@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Start the webdav
-/usr/bin/fast-webdav --workdir='/etc/fast-webdav' &
-
+# Start the webdav 移除workdir 有必要再添加回来
+#/usr/bin/fast-webdav --workdir='/etc/fast-webdav' &
+/usr/bin/fast-webdav &
 # Start the fastAPI process
  uvicorn main:app --reload --reload-include '*.ini' &
   

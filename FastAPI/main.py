@@ -181,6 +181,6 @@ async def dashboard(request: Request):
 async def favicon():
     file_name = "favicon.ico"
     file_path = os.path.join(app.root_path, "static")
-    return FileResponse(path=file_path, headers={"Content-Disposition": "attachment; filename=" + file_name})
+    return FileResponse(path=f"{file_path}/{file_name}", headers={"Content-Disposition": "attachment; filename=" + file_name})
 
 

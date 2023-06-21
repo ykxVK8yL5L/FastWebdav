@@ -1,4 +1,5 @@
 # FastWebdav
+演示视频:https://youtu.be/NBlzV9wgQVU   
 用FastAPI为WebDav提供数据。   
 这个项目不是针对小白用户使用的，Alist用户不是目标用户，需要会Python   
 之前的几个webdav项目都是通过原生rust实现，技术难度并不大，但是扩展性太差。后来想着用rust做个webdav然后数据通过api提供统一格式就可以自由的扩展了，所以才有了这个项目。

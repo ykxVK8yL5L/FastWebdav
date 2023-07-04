@@ -4,7 +4,7 @@
 #/usr/bin/fast-webdav --workdir='/etc/fast-webdav' &
 /usr/bin/fast-webdav &
 # Start the fastAPI process
- uvicorn main:app --reload --reload-include '*.ini' &
+ uvicorn main:app --host '0.0.0.0' --port 8000 --reload --reload-include '*.ini' &
   
 # Wait for any process to exit
 wait -n

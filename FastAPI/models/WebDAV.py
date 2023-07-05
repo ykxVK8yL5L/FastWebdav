@@ -2,6 +2,7 @@ import json, requests
 import time
 import datetime
 from datetime import timedelta
+from datetime import datetime
 from fastapi import HTTPException
 import re
 import math
@@ -14,7 +15,7 @@ import base64
 sys.path.append(os.path.abspath('../'))
 from schemas.schemas import *
 from webdav3.client import Client
-
+from urllib.parse import urlparse
 
 class WebDAV():
     '''
@@ -42,38 +43,62 @@ class WebDAV():
             "user-agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/27.0.1453.93 Safari/537.36",
             "Authorization": 'Basic '+ auth_token
         }
-        self.client = Client({
-            'webdav_hostname': self.url,
-            'webdav_login': self.username,
-            'webdav_password': self.password
-        })
+        # self.client = Client({
+        #     'webdav_hostname': self.url,
+        #     'webdav_login': self.username,
+        #     'webdav_password': self.password
+        # })
+        # self.client.verify = False
+
+        parsed_url = urlparse(self.url)
+        self.netloc = parsed_url.netloc
+        self.hostname = parsed_url.hostname
+        self.path = parsed_url.path
+        self.scheme = parsed_url.scheme
+
 
     # 文件列表方法 返回DavFile列表 请求内容为ListRequest，默认根目录ID为root
     def list_files(self, list_req:ListRequest):
         # 计算请求路径 
         path_str = list_req.path_str
         if list_req.parent_file_id=='root':
-            path_str='/'
+            path_str=self.path
         else:
             start_index=list_req.path_str.find('/',1)
-            path_str=list_req.path_str[start_index:]
+            path_str=self.path+list_req.path_str[start_index:]
 
         file_list = self.cache.get(f"{self.username}-files-{list_req.path_str}")
         # 如果缓存中没有结果，则重新请求并缓存结果
         if not file_list:
             file_list = []
-            files = self.client.list(path_str, get_info=True)
+            client = Client({
+                'webdav_hostname': self.scheme+"://"+self.netloc,
+                'webdav_login': self.username,
+                'webdav_password': self.password,
+                'webdav_root': path_str,
+             })
+            files = client.list(get_info=True)
             for file in files:
                 file['name'] = file['path'].split('/')[-2]
+
+                if file['path']==self.path+'/':
+                    continue
+
                 kind = 0
                 filesize = 0
-                dt = datetime.datetime.strptime(file['created'], '%Y-%m-%dT%H:%M:%SZ')
-                formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
                 download_url = None
+                now = datetime.now()
+                # 格式化时间为字符串
+                formatted_time = now.strftime("%Y-%m-%d %H:%M:%S")
+                if file['created'] is not None:
+                    dt = datetime.strptime(file['created'], '%Y-%m-%dT%H:%M:%SZ')
+                    formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
+                if file['etag'] is None:
+                    file['etag'] = base64.b64encode(f"{file['name']}:{file['path']}".encode('utf-8')).decode('utf-8')
                 if not file['isdir']:
                     kind = 1
                     filesize = file['size']
-                    download_url = self.url+file['path']
+                    download_url = self.scheme+"://"+self.netloc+file['path']
                     file['name']=file['path'].split('/')[-1]
                 playe_headers = json.dumps(self.headers)
                 dav_file = DavFile(id=file['etag'],provider=self.provider,parent_id=list_req.parent_file_id,kind= kind,name=file['name'],size=str(filesize),create_time=formatted_time,download_url=download_url,play_headers=playe_headers) 

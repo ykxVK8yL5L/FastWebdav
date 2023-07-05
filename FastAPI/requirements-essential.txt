@@ -5,5 +5,4 @@ requests
 cachelib
 python-multipart
 jinja2
-lxml
 webdavclient3

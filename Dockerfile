@@ -7,7 +7,7 @@ ARG PYTHON_VER=3.10
 ARG PYTHON_IMG_TYPE=alpine
 ARG EXT_TYPE=essential
 RUN if test "${PYTHON_IMG_TYPE}" = 'alpine' && test "${EXT_TYPE}" != 'essential'; then \
-    apk add --update gcc musl-dev make cargo; \
+    apk add --update gcc libxml2-dev libxslt-dev musl-dev make cargo; \
     elif test "${PYTHON_IMG_TYPE}" = 'slim' && test "${EXT_TYPE}" != 'essential'; then \
     apt-get update -qq; apt-get install --no-install-recommends libc6-dev gcc make cargo -y;  \
     fi

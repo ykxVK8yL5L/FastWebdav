@@ -146,7 +146,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          platforms: linux/amd64,linux/arm64,linux/arm/v7,linux/arm/v6
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
           push: ${{ github.event_name != 'pull_request' && (github.ref == 'refs/heads/encrypt' || startsWith(github.ref, 'refs/tags/')) }}
           tags: ykxvk8yl5l/fast-webdav:encrypt
           labels: ${{ steps.meta.outputs.labels }}       

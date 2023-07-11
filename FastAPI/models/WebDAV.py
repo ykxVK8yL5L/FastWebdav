@@ -90,8 +90,9 @@ class WebDAV():
                 now = datetime.now()
                 # 格式化时间为字符串
                 formatted_time = now.strftime("%Y-%m-%d %H:%M:%S")
-                if file['created'] is not None:
-                    dt = datetime.strptime(file['created'], '%Y-%m-%dT%H:%M:%SZ')
+                if file['modified'] is not None:
+                    #dt = datetime.strptime(file['modified'], '%Y-%m-%dT%H:%M:%SZ')
+                    dt = datetime.strptime(file['modified'], '%a, %d %b %Y %H:%M:%S %Z')
                     formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
                 if file['etag'] is None:
                     file['etag'] = base64.b64encode(f"{file['name']}:{file['path']}".encode('utf-8')).decode('utf-8')

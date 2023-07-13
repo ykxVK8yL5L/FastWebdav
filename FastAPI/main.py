@@ -140,7 +140,7 @@ async def root():
     files = []
     for provider in providers:
         name = config.get(provider,'name')
-        file = DavFile(id='root',provider=provider,parent_id=0,kind= 0,name=name,size=0,create_time=formatted_time,download_url=None)
+        file = DavFile(id='root',provider=provider,parent_id='0',kind=0,name=name,size='0',create_time=formatted_time,download_url=None)
         files.append(file)
     return files
 

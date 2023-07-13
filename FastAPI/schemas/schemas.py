@@ -12,10 +12,10 @@ class DavFile(BaseModel):
     name: str = Field(title="文件名称",description="文件名称") 
     size: str = Field(title="文件大小",description="文件大小，注意返回需要为字符串")  
     create_time:str = Field(title="文件创建时间",description="文件创建时间，需要格式化为年-月-日 时-分-秒的格式，一定要一致否则webdav会报错")
-    sha1: Optional[str] = Field(title="文件sha1",description="文件sha1，可选")  
-    download_url: Optional[str] = Field(title="文件下载链接",description="文件下载链接，有些可以在列表页算出来的就不需要请求了，可以添加?x-oss-expires=时间戳 来控制过期时间，如果rust的缓存时间先到以缓存时间为准")  #
-    play_headers: Optional[str] = Field(title="播放文件的header信息",description="播放文件的header信息")  #
-    password: Optional[str] = Field(title="目录加密密码",description="目录加密密码")  #
+    sha1: Optional[str] = Field(None,title="文件sha1",description="文件sha1，可选")  
+    download_url: Optional[str] = Field(None,title="文件下载链接",description="文件下载链接，有些可以在列表页算出来的就不需要请求了，可以添加?x-oss-expires=时间戳 来控制过期时间，如果rust的缓存时间先到以缓存时间为准")  #
+    play_headers: Optional[str] = Field(None,title="播放文件的header信息",description="播放文件的header信息")  #
+    password: Optional[str] = Field(None,title="目录加密密码",description="目录加密密码")  #
     class Config:
         title = "DavFile:Webdav文件模型"
 
@@ -58,7 +58,7 @@ class InitUploadResponse(BaseModel):
     '''
     code:int = Field(title="上传响应的状态码",description="目前webdav没有做过多状态处理，只有200成功，如果要显示信息在message里设置")
     message:str = Field(title="上传响应的信息提示",description="一般是错误提示，如果状态码不是200才显示") 
-    extra:Optional[str] = Field(title="传递一些额外参数",description="传递一些额外参数，处理不同服务器需要的信息最好是base64加密字符串") 
+    extra:Optional[str] = Field(None,title="传递一些额外参数",description="传递一些额外参数，处理不同服务器需要的信息最好是base64加密字符串") 
     data:Union[InitResponseData, None] = Field(title="上传响应的数据",description="上传响应的数据") 
     class Config:
         title = "InitUploadResponse:初始化文件上传响应信息"
@@ -71,8 +71,8 @@ class OssArgs(BaseModel):
     uploader:str = Field(title="分片上传网址",description="分片上传网址") 
     sha1:str = Field(title="文件sha1做上传ID用",description="文件sha1做上传ID用") 
     chunkSize:int = Field(title="文件分片大小",description="文件分片大小") 
-    extra_init:Optional[str] = Field(title="初始化后的一些额外信息",description="初始化后的一些额外信息") 
-    extra_last:Optional[str] = Field(title="上次上传后的一些额外信息",description="上次上传后的一些额外信息") 
+    extra_init:Optional[str] = Field(None,title="初始化后的一些额外信息",description="初始化后的一些额外信息") 
+    extra_last:Optional[str] = Field(None,title="上次上传后的一些额外信息",description="上次上传后的一些额外信息") 
     class Config:
         title = "OssArgs:上传响应信息缓存"
 
@@ -109,7 +109,7 @@ class SliceUploadResponse(BaseModel):
     '''
     code:int = Field(title="分片上传响应的状态码",description="目前webdav没有做过多状态处理，只有200成功，如果要显示信息在message里设置")
     message:str = Field(title="分片上传响应的信息提示",description="一般是错误提示，如果状态码不是200才显示") 
-    extra:Optional[str] = Field(title="传递一些额外参数",description="传递一些额外参数，处理不同服务器需要的信息最好是base64加密字符串") 
+    extra:Optional[str] = Field(None,title="传递一些额外参数",description="传递一些额外参数，处理不同服务器需要的信息最好是base64加密字符串") 
     data:Union[FileUploadInfo, None] = Field(title="分片上传响应的数据",description="分片上传响应的数据") 
     class Config:
         title = "SliceUploadResponse:分片上传响应"

@@ -69,34 +69,76 @@ impl AesCTR {
    
     pub fn set_position(&mut self, position: usize) {
         let increment = position / 16;
-        self.increment_iv(increment as u32);
+        self.increment_iv(increment as u64);
         self.cipher = Aes128Ctr128BE::new(&self.key.into(), &self.iv.into());
         let offset = position%16;
         let buffer = vec![0u8; offset]; 
         self.encrypt(buffer);
     }
 
-    fn increment_iv(&mut self, increment: u32) {
-        const MAX_UINT32: u32 = 0xffffffff;
-        let increment_big: u32 = increment / MAX_UINT32;
-        let increment_little: u32 = (increment % MAX_UINT32) - increment_big;
-        let mut overflow: u32 = 0;
+    // fn increment_iv(&mut self, increment: u32) {
+    //     const MAX_UINT32: u32 = 0xffffffff;
+    //     let increment_big: u32 = increment / MAX_UINT32;
+    //     let increment_little: u32 = (increment % MAX_UINT32) - increment_big;
+    //     let mut overflow: u32 = 0;
+    //     for idx in 0..4 {
+    //         let mut num = u32::from_be_bytes([
+    //             self.iv[12 - idx*4],
+    //             self.iv[13 - idx*4],
+    //             self.iv[14 - idx*4],
+    //             self.iv[15 - idx*4],
+    //         ]);
+    //         let mut inc: u32 = overflow;
+    //         if idx == 0 {inc += increment_little;};
+    //         if idx == 1 {inc += increment_big;};
+    //         num += inc;
+    //         let num_big: u32 = num / MAX_UINT32;
+    //         let num_little = (num % MAX_UINT32) - num_big;
+    //         overflow = num_big;
+    //         self.iv[12 - idx*4..16 - idx*4].copy_from_slice(&num_little.to_be_bytes());
+    //     }
+    // }
+
+    fn increment_iv(&mut self,increment: u64) {
+        const MAX_UINT32: u64 = 0xffffffff;
+        let increment_big = increment / MAX_UINT32;
+        let increment_little = (increment % MAX_UINT32) - increment_big;
+        let mut overflow = 0;
+    
         for idx in 0..4 {
-            let mut num = u32::from_be_bytes([
-                self.iv[12 - idx*4],
-                self.iv[13 - idx*4],
-                self.iv[14 - idx*4],
-                self.iv[15 - idx*4],
+            let num = u32::from_be_bytes([
+                self.iv[12 - idx * 4],
+                self.iv[13 - idx * 4],
+                self.iv[14 - idx * 4],
+                self.iv[15 - idx * 4],
             ]);
-            let mut inc: u32 = overflow;
-            if idx == 0 {inc += increment_little;};
-            if idx == 1 {inc += increment_big;};
-            num += inc;
-            let num_big: u32 = num / MAX_UINT32;
+    
+            let mut inc = overflow;
+            if idx == 0 {
+                inc += increment_little;
+            }
+            if idx == 1 {
+                inc += increment_big;
+            }
+    
+            let mut num = u64::from(num);
+            num = num.wrapping_add(inc);
+    
+            let num_big = num / MAX_UINT32;
             let num_little = (num % MAX_UINT32) - num_big;
             overflow = num_big;
-            self.iv[12 - idx*4..16 - idx*4].copy_from_slice(&num_little.to_be_bytes());
+    
+            self.iv[12 - idx * 4] = ((num_little >> 24) & 0xff) as u8;
+            self.iv[13 - idx * 4] = ((num_little >> 16) & 0xff) as u8;
+            self.iv[14 - idx * 4] = ((num_little >> 8) & 0xff) as u8;
+            self.iv[15 - idx * 4] = (num_little & 0xff) as u8;
         }
     }
+
+
+
+
+
+
 
 }

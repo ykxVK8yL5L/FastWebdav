@@ -446,16 +446,22 @@ impl WebdavDriveFileSystem {
             let aes_decoder = AesCTR::new(&password,"0");
             let decoder = MixBase64::new(&aes_decoder.passwd_outward);
             for file in &file_list  {
-                let decode_str =  match file.name.rfind('.') {
+                if {file.kind==1} {
+                    let decode_str =  match file.name.rfind('.') {
                     Some(index) => file.name[0..index-1].to_string(),
                     None => "".to_string(),
-                };
-                let real_name = decoder.decode(&decode_str);
-                let mut return_file = file.clone();
-                return_file.name = real_name;
-                return_file.oriname = Some(file.name.clone());
-                return_file.password = Some(password.to_string());
-                return_list.push(return_file.clone());
+                    };
+                    let real_name = decoder.decode(&decode_str);
+                    let mut return_file = file.clone();
+                    return_file.name = real_name;
+                    return_file.oriname = Some(file.name.clone());
+                    return_file.password = Some(password.to_string());
+                    return_list.push(return_file.clone());
+                }else {
+                    let mut return_file = file.clone();
+                    return_list.push(return_file.clone());
+                }
+                
             }
             self.cache_dir(path_str,return_list.clone()).await;
             Ok(return_list)

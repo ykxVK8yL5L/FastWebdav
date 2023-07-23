@@ -60,5 +60,4 @@ def get_url(self,dav_file:DavFile): #这个是获取文件链接的方法
 ```
 curl -T "文件名" "http://127.0.0.1:9867/"  --header 'OC-Checksum:sha1:文件名的sha1'
 ```
-
 # 再次重申 Alist用户不是目标用户

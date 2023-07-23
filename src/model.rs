@@ -32,23 +32,29 @@ pub struct CreateFolderRequest<'a> {
     pub name: &'a str,
     pub parent_id: &'a str,
     pub parend_file:WebdavFile,
+    pub path_str: &'a str,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct RemoveFileRequest{
     pub file:WebdavFile,
+    pub remove_path: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct RenameFileRequest<'a>{
     pub file:WebdavFile,
     pub new_name:&'a str,
+    pub from:String,
+    pub to:String,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct MoveFileRequest<'a>{
     pub file:WebdavFile,
     pub new_parent_id:&'a str,
+    pub from:String,
+    pub to:String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -360,6 +366,7 @@ pub struct WebdavFile {
     pub id: String,
     pub provider:Option<String>,
     pub name: String,
+    pub oriname: Option<String>,
     //#[serde(rename = "parentId")]
     pub parent_id: String,
     pub size: String,
@@ -440,6 +447,7 @@ impl WebdavFile {
             provider:None,
             kind:0,
             name: "".to_string(),
+            oriname: None,
             parent_id: "".to_string(),
             size: "0".to_string(),
             create_time: chrono::offset::Utc::now(),

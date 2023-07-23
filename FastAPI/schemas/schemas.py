@@ -10,6 +10,7 @@ class DavFile(BaseModel):
     provider: str = Field(title="模型实例的name",description="模型实例的name,通常不用管")
     kind: int = Field(title="文件类型",description="文件类型0为文件夹，1为文件") 
     name: str = Field(title="文件名称",description="文件名称") 
+    oriname: Optional[str] = Field(None,title="文件原始名称",description="文件原始名称，加密情况下使用") 
     size: str = Field(title="文件大小",description="文件大小，注意返回需要为字符串")  
     create_time:str = Field(title="文件创建时间",description="文件创建时间，需要格式化为年-月-日 时-分-秒的格式，一定要一致否则webdav会报错")
     sha1: Optional[str] = Field(None,title="文件sha1",description="文件sha1，可选")  
@@ -143,6 +144,7 @@ class CreateFolderRequest(BaseModel):
     '''
     name:str = Field(title="新文件夹名称",description="新文件夹名称")
     parent_id:str = Field(title="上级目录ID",description="上级目录ID,不允许在根目录创建") 
+    path_str:str = Field(title="上级目录路径",description="上级目录路径,不允许在根目录创建") 
     parend_file:Union[DavFile, None] =Field(title="上级目录文件信息",description="上级目录文件信息") 
     class Config:
         title = "CreateFolderRequest:创建文件夹请求"
@@ -152,6 +154,7 @@ class RemoveFileRequest(BaseModel):
     删除文件请求
     '''
     dav_file:Union[DavFile, None] =Field(title="删除文件信息",description="删除文件信息",alias='file') 
+    remove_path:str = Field(title="删除文件路径",description="删除文件路径,不允许在根目录操作") 
     class Config:
         title = "RemoveFileRequest:删除文件请求"
 
@@ -161,6 +164,8 @@ class RenameFileRequest(BaseModel):
     '''
     dav_file:Union[DavFile, None] =Field(title="重命名文件信息",description="重命名文件信息",alias='file') 
     new_name:str = Field(title="新文件名称",description="新文件名称")
+    from_path:str = Field(title="原路径",description="原路径",alias='from')
+    to_path:str = Field(title="新路径",description="新路径",alias='to')
     class Config:
         title = "RenameFileRequest:重命名请求"
 
@@ -170,6 +175,8 @@ class MoveFileRequest(BaseModel):
     '''
     dav_file:Union[DavFile, None] =Field(title="移动文件信息",description="移动文件信息",alias='file') 
     new_parent_id:str = Field(title="新文件目录ID",description="新文件目录ID")
+    from_path:str = Field(title="原路径",description="原路径",alias='from')
+    to_path:str = Field(title="新路径",description="新路径",alias='to')
     class Config:
         title = "MoveFileRequest:移动文件请求"
 

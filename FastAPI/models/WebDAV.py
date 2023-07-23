@@ -2,7 +2,6 @@ import json, requests
 import time
 import datetime
 from datetime import timedelta
-from datetime import datetime
 from fastapi import HTTPException
 import re
 import math
@@ -14,7 +13,7 @@ import configparser
 import base64
 sys.path.append(os.path.abspath('../'))
 from schemas.schemas import *
-from webdav3.client import Client
+from webdav4.client import Client
 from urllib.parse import urlparse
 
 class WebDAV():
@@ -43,12 +42,7 @@ class WebDAV():
             "user-agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/27.0.1453.93 Safari/537.36",
             "Authorization": 'Basic '+ auth_token
         }
-        # self.client = Client({
-        #     'webdav_hostname': self.url,
-        #     'webdav_login': self.username,
-        #     'webdav_password': self.password
-        # })
-        # self.client.verify = False
+        self.client = Client(self.url, auth=(self.username, self.password))
 
         parsed_url = urlparse(self.url)
         self.netloc = parsed_url.netloc
@@ -62,49 +56,42 @@ class WebDAV():
         # 计算请求路径 
         path_str = list_req.path_str
         if list_req.parent_file_id=='root':
-            path_str=self.path
+            path_str="/"
         else:
             start_index=list_req.path_str.find('/',1)
-            path_str=self.path+list_req.path_str[start_index:]
-
-        file_list = self.cache.get(f"{self.username}-files-{list_req.path_str}")
+            path_str=list_req.path_str[start_index:]
+        
+        file_list = self.cache.get(f"{self.username}-files-{path_str}")
         # 如果缓存中没有结果，则重新请求并缓存结果
         if not file_list:
             file_list = []
-            client = Client({
-                'webdav_hostname': self.scheme+"://"+self.netloc,
-                'webdav_login': self.username,
-                'webdav_password': self.password,
-                'webdav_root': path_str,
-             })
-            files = client.list(get_info=True)
+            files = self.client.ls(path_str,detail=True)
             for file in files:
-                file['name'] = file['path'].split('/')[-2]
-
-                if file['path']==self.path+'/':
-                    continue
-
                 kind = 0
                 filesize = 0
                 download_url = None
-                now = datetime.now()
+                now = datetime.datetime.now()
                 # 格式化时间为字符串
                 formatted_time = now.strftime("%Y-%m-%d %H:%M:%S")
+                if file['display_name'] is None:
+                    file['display_name']=os.path.basename(file['name'])
+
                 if file['modified'] is not None:
                     #dt = datetime.strptime(file['modified'], '%Y-%m-%dT%H:%M:%SZ')
-                    dt = datetime.strptime(file['modified'], '%a, %d %b %Y %H:%M:%S %Z')
+                    dt = file['modified']
                     formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
                 if file['etag'] is None:
-                    file['etag'] = base64.b64encode(f"{file['name']}:{file['path']}".encode('utf-8')).decode('utf-8')
-                if not file['isdir']:
+                    file['etag'] = base64.b64encode(f"{file['display_name']}:{file['href']}".encode('utf-8')).decode('utf-8')
+
+                if  file['type']!='directory':
                     kind = 1
-                    filesize = file['size']
-                    download_url = self.scheme+"://"+self.netloc+file['path']
-                    file['name']=file['path'].split('/')[-1]
+                    filesize = file['content_length']
+                    download_url = self.scheme+"://"+self.netloc+file['href']
+
                 playe_headers = json.dumps(self.headers)
-                dav_file = DavFile(id=file['etag'],provider=self.provider,parent_id=list_req.parent_file_id,kind= kind,name=file['name'],size=str(filesize),create_time=formatted_time,download_url=download_url,play_headers=playe_headers) 
+                dav_file = DavFile(id=file['etag'].replace('"',''),provider=self.provider,parent_id=list_req.parent_file_id,kind= kind,name=file['display_name'],size=str(filesize),create_time=formatted_time,download_url=download_url,play_headers=playe_headers) 
                 file_list.append(dav_file)
-            self.cache.set(f"{self.username}-files-{list_req.path_str}", file_list, timeout=self.cache_time)
+            self.cache.set(f"{self.username}-files-{path_str}", file_list, timeout=self.cache_time)
         return file_list
 
     # 文件下载地址 返回下载地址
@@ -121,7 +108,51 @@ class WebDAV():
         #     download_expires_url=f"{download_url}?x-oss-expires={expires_timestamp_sec}"
         return ""
 
+    # 删除文件
+    def remove_file(self,remove_file_req:RemoveFileRequest):
+        folderId = remove_file_req.dav_file.parent_id
+        path_str = remove_file_req.remove_path
+        if folderId=='root':
+            folderId='0'
+        removed_file_path=path_str[path_str.find('/',1):]
+        self.client.remove(removed_file_path)
+        parent_dir=os.path.dirname(removed_file_path)
+        self.cache.delete(f"{self.username}-files-{parent_dir}")
+        return remove_file_req.dav_file
 
 
+    # 创建文件夹
+    def create_folder(self,create_folder_req:CreateFolderRequest):
+        now = datetime.datetime.now()
+        # 格式化时间为字符串
+        formatted_time = now.strftime("%Y-%m-%d %H:%M:%S")
+        folderId = create_folder_req.parent_id
+        path_str = create_folder_req.path_str
+        if folderId=='root':
+            folderId='0'
+        created_parent_dir=path_str[path_str.find('/',1):]
+        if path_str.find('/',1)==-1:
+            created_parent_dir="/"
+        created_folder = created_parent_dir+"/"+create_folder_req.name
+        self.client.mkdir(created_folder)
+        self.cache.delete(f"{self.username}-files-{created_parent_dir}")
+        etag = base64.b64encode(f"{create_folder_req.name}:{created_folder}".encode('utf-8')).decode('utf-8')
+        dav_file = DavFile(id=etag,parent_id=create_folder_req.parent_id,provider=create_folder_req.parend_file.provider,kind=0,name=create_folder_req.name,size=0,create_time=formatted_time)
+        return dav_file
+
+    # 移动文件
+    def move_file(self,move_file_req:MoveFileRequest):
+        folderId = move_file_req.dav_file.parent_id
+        if folderId=='root':
+            folderId='0'
+        # from_path = move_file_req.from_path.split('/', 2)[-1]
+        # to_path = move_file_req.to_path.split('/', 2)[-1]
+        from_path=move_file_req.from_path[move_file_req.from_path.find('/',1):]
+        to_path=move_file_req.to_path[move_file_req.to_path.find('/',1):]
+        self.client.move(from_path,to_path)
+        from_dir=os.path.dirname(from_path)
+        to_dir=os.path.dirname(to_path)
+        self.cache.delete(f"{self.username}-files-{from_dir}")
+        self.cache.delete(f"{self.username}-files-{to_dir}")
+        return move_file_req.dav_file
     
-   

@@ -269,8 +269,10 @@ impl WebdavDriveFileSystem {
         let create_req = CreateFolderRequest{
             name:folder_name,
             parent_id:parent_id,
-            parend_file:parent_file.clone()
+            parend_file:parent_file.clone(),
+            path_str:&path_str,
         };
+        
         let create_url = format!("{}{}/create_folder",API_URL,parent_file.provider.unwrap()); 
         let created_folder:WebdavFile = match self.post_request(create_url, &create_req).await{
             Ok(res)=>res.unwrap(),
@@ -283,14 +285,16 @@ impl WebdavDriveFileSystem {
         Ok(created_folder)
     }
 
-    pub async fn remove_file(&self,file: &WebdavFile) -> Result<()> {
+    pub async fn remove_file(&self,file: &WebdavFile,path:PathBuf) -> Result<()> {
         if file.id=="0"{
             error!("根目录的文件夹无法修改或删除");
             panic!("根目录的文件夹无法修改或删除")
         }
+        let mut remove_path=path.into_os_string().into_string().unwrap();
 
         let remove_req = RemoveFileRequest{
-            file:file.clone()
+            file:file.clone(),
+            remove_path:remove_path,
         };
         let remove_url = format!("{}{}/remove_file",API_URL,file.clone().provider.unwrap()); 
         //  下面的方法返回删除的文件，以下的重命名和移动都一样
@@ -301,7 +305,7 @@ impl WebdavDriveFileSystem {
         //         panic!("删除文件失败: {:?}", err)
         //     }
         // };
-        match self.post_request(remove_url, &remove_req).await{
+        let removed_file:WebdavFile=match self.post_request(remove_url, &remove_req).await{
             Ok(res)=>res.unwrap(),
             Err(err)=>{
                 error!("删除文件失败: {:?}", err);
@@ -311,10 +315,24 @@ impl WebdavDriveFileSystem {
         Ok(())
     }
 
-    pub async fn rename_file(&self, file: &WebdavFile, new_name: &str) -> Result<()> {
+    pub async fn rename_file(&self, file: &WebdavFile, new_name: &str,from:PathBuf,to:PathBuf) -> Result<()> {
+        
+        let mut from_path=from.into_os_string().into_string().unwrap();
+        let mut to_path= to.into_os_string().into_string().unwrap();
+        match &file.password {
+            Some(password)=>{
+                from_path=from_path.replace(&file.name, &file.oriname.clone().unwrap());
+                to_path=to_path.replace(&file.name, &file.oriname.clone().unwrap());
+            },
+            None=>{
+                
+            }
+        };
         let rename_req = RenameFileRequest{
             file:file.clone(),
             new_name:new_name,
+            from:from_path,
+            to:to_path,
         };
         let rename_url = format!("{}{}/rename_file",API_URL,file.clone().provider.unwrap()); 
         match self.post_request(rename_url, &rename_req).await{
@@ -328,13 +346,27 @@ impl WebdavDriveFileSystem {
     }
 
 
-    pub async fn move_file(&self, file: &WebdavFile, new_parent_id: &str) -> Result<()> {
+    pub async fn move_file(&self, file: &WebdavFile, new_parent_id: &str,from:PathBuf,to:PathBuf) -> Result<()> {
+        let mut from_path=from.into_os_string().into_string().unwrap();
+        let mut to_path= to.into_os_string().into_string().unwrap();
+        match &file.password {
+            Some(password)=>{
+                from_path=from_path.replace(&file.name, &file.oriname.clone().unwrap());
+                to_path=to_path.replace(&file.name, &file.oriname.clone().unwrap());
+            },
+            None=>{
+                
+            }
+        };
         let move_req = MoveFileRequest{
             file:file.clone(),
             new_parent_id:new_parent_id,
+            from:from_path,
+            to:to_path,
         };
+
         let move_url = format!("{}{}/move_file",API_URL,file.clone().provider.unwrap()); 
-        match self.post_request(move_url, &move_req).await{
+        let moved_file:WebdavFile=match self.post_request(move_url, &move_req).await{
             Ok(res)=>res.unwrap(),
             Err(err)=>{
                 error!("重命名文件失败: {:?}", err);
@@ -421,6 +453,7 @@ impl WebdavDriveFileSystem {
                 let real_name = decoder.decode(&decode_str);
                 let mut return_file = file.clone();
                 return_file.name = real_name;
+                return_file.oriname = Some(file.name.clone());
                 return_file.password = Some(password.to_string());
                 return_list.push(return_file.clone());
             }
@@ -897,6 +930,7 @@ impl DavFileSystem for WebdavDriveFileSystem {
                     provider:parent_file.provider,
                     kind:0,
                     name: name,
+                    oriname: None,
                     parent_id: parent_folder_id,
                     size: size.unwrap_or(0).to_string(),
                     create_time: chrono::offset::Utc::now(),
@@ -993,7 +1027,7 @@ impl DavFileSystem for WebdavDriveFileSystem {
                 return Err(FsError::Forbidden);
             }
 
-            self.remove_file(&file)
+            self.remove_file(&file,path.clone())
                 .await
                 .map_err(|err| {
                     error!(path = %path.display(), error = %err, "remove directory failed");
@@ -1016,7 +1050,7 @@ impl DavFileSystem for WebdavDriveFileSystem {
                 .await?
                 .ok_or(FsError::NotFound)?;
 
-            self.remove_file(&file)
+            self.remove_file(&file,path.clone())
                 .await
                 .map_err(|err| {
                     error!(path = %path.display(), error = %err, "remove file failed");
@@ -1034,10 +1068,7 @@ impl DavFileSystem for WebdavDriveFileSystem {
         let to = self.normalize_dav_path(to_dav);
         debug!(from = %from.display(), to = %to.display(), "fs: rename");
         async move {
-
-
             let parent_path = to.parent().unwrap();
-
             let path_str = parent_path.to_string_lossy().into_owned();
             let parent_file = match self.get_by_path(&path_str).await{
                 Ok(res)=>res.unwrap(),
@@ -1066,7 +1097,7 @@ impl DavFileSystem for WebdavDriveFileSystem {
                         false
                     };
                     let name = name.to_string_lossy().into_owned();
-                    self.rename_file(&file, &name).await;
+                    self.rename_file(&file, &name,from.clone(),to.clone()).await;
                 } else {
                     return Err(FsError::Forbidden);
                 }
@@ -1086,11 +1117,12 @@ impl DavFileSystem for WebdavDriveFileSystem {
                     .await?
                     .ok_or(FsError::NotFound)?;
                 let new_name = to_dav.file_name();
-                self.move_file(&file, &to_parent_file.id).await;
+                self.move_file(&file, &to_parent_file.id,from.clone(),to.clone()).await;
             }
 
             if is_dir {
                 self.dir_cache.invalidate(&from).await;
+                self.dir_cache.invalidate(&to).await;
             }
             self.dir_cache.invalidate_parent(&from).await;
             self.dir_cache.invalidate_parent(&to).await;
@@ -1315,9 +1347,12 @@ impl FastDavFile {
                     return Ok(false);
                 }
                 // existing file, delete before upload
+                // 路径 但是没法确定上传到哪里
+                let mut path_buf = self.parent_dir.clone();
+                 path_buf.push(self.file.name.clone());
                 if let Err(err) = self
                     .fs
-                    .remove_file(&self.file)
+                    .remove_file(&self.file,path_buf.to_path_buf())
                     .await
                 {
                     error!(file_name = %self.file.name, error = %err, "delete file before upload failed");

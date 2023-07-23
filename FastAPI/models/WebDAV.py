@@ -137,7 +137,7 @@ class WebDAV():
         self.client.mkdir(created_folder)
         self.cache.delete(f"{self.username}-files-{created_parent_dir}")
         etag = base64.b64encode(f"{create_folder_req.name}:{created_folder}".encode('utf-8')).decode('utf-8')
-        dav_file = DavFile(id=etag,parent_id=create_folder_req.parent_id,provider=create_folder_req.parend_file.provider,kind=0,name=create_folder_req.name,size=0,create_time=formatted_time)
+        dav_file = DavFile(id=etag,parent_id=create_folder_req.parent_id,provider=create_folder_req.parend_file.provider,kind=0,name=create_folder_req.name,size='0',create_time=formatted_time)
         return dav_file
 
     # 移动文件

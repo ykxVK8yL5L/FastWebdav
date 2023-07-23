@@ -129,7 +129,7 @@ class StreamTape():
             raise HTTPException(status_code=400, detail="无法创建文件夹")
         if result['code']==200:
             self.cache.delete(f"streamtape-{self.login}-{folderId}")
-            dav_file = DavFile(id=result['result']['folderid'],parent_id=create_folder_req.parent_id,provider=create_folder_req.parend_file.provider,kind=0,name=create_folder_req.name,size=0,create_time=formatted_time)
+            dav_file = DavFile(id=result['result']['folderid'],parent_id=create_folder_req.parent_id,provider=create_folder_req.parend_file.provider,kind=0,name=create_folder_req.name,size='0',create_time=formatted_time)
             return dav_file
         else:
             raise HTTPException(status_code=400, detail="无法创建文件夹")

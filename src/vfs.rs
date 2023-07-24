@@ -292,6 +292,15 @@ impl WebdavDriveFileSystem {
         }
         let mut remove_path=path.into_os_string().into_string().unwrap();
 
+         match &file.password {
+            Some(password)=>{
+                remove_path=remove_path.replace(&file.name, &file.oriname.clone().unwrap());
+            },
+            None=>{
+                
+            }
+        };
+
         let remove_req = RemoveFileRequest{
             file:file.clone(),
             remove_path:remove_path,

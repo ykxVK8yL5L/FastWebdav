@@ -19,28 +19,28 @@ password=123456  #加密密码
 第一次访问后会生成providers.ini这个是数据提供的入口，里面的配置并不是目录的配置，以下是示例文件
 ```
 [tmplink]
-provider = TmpLink(provider="tmplink",token='XXXXXXXXXXXXXXXXXXXXXXXX')
+provider = TmpLink(provider="tmplink",token="XXXXXXXXXXXXXXXXXXXXXXXX")
 name = tmplink
 [stariver]
-provider = Stariver(provider="stariver",token='XXXXXXXXXXXXXXXXXXXXXXXXXX')
+provider = Stariver(provider="stariver",token="XXXXXXXXXXXXXXXXXXXXXXXXXX")
 name = stariver
 [pikpak]
-provider = PikPak(provider="pikpak",username='XXXXXXXXXXX',password='XXXXXXXXXXXX')
+provider = PikPak(provider="pikpak",username="XXXXXXXXXXX",password="XXXXXXXXXXXX")
 name = pikpak
 [meting]
-provider = Meting(provider="meting",server='netease',playlist_id='60198')
+provider = Meting(provider="meting",server="netease",playlist_id="60198")
 name = meting
 [neteasecloud]
-provider = NeteaseCloudMusic(provider="neteasecloud",playlist_id='577991289',count=50)
+provider = NeteaseCloudMusic(provider="neteasecloud",playlist_id="577991289",count=50)
 name = neteasecloud
 [gofile]
-provider = GoFile(provider="gofile",token="XXXXXXXXXXXXXXXXXXXXX",contentId='XXXXXXXXXXXXXXXXXXXXX',websiteToken='7fd94ds12fds4')
+provider = GoFile(provider="gofile",token="XXXXXXXXXXXXXXXXXXXXX",contentId="XXXXXXXXXXXXXXXXXXXXX",websiteToken="7fd94ds12fds4")
 name = gofile
 [filebin]
-provider = Filebin(provider="filebin",bin='XXXXXXXXXXXXXX')
+provider = Filebin(provider="filebin",bin="XXXXXXXXXXXXXX")
 name = filebin
 [webdav]
-provider = WebDAV(provider="webdav",url="http://xxxxxxxxxxxxxxxx",username='',password='')
+provider = WebDAV(provider="webdav",url="http://xxxxxxxxxxxxxxxx",username="",password="")
 name = webdav
 ```
 上面的代码中定义了几个provider,里面是我内置的几个模型，其中meting是废的，由于接口没有提供size参数，固定了文件大小，再加上目前的接口基本无法提供完整数据仅供参考。   

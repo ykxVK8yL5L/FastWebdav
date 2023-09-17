@@ -42,6 +42,9 @@ name = filebin
 [webdav]
 provider = WebDAV(provider="webdav",url="http://xxxxxxxxxxxxxxxx",username='',password='')
 name = webdav
+[onedrive]
+provider = Onedrive(provider="onedrive",region='global',rootPath='/',clientID='',clientSecret='',redirectUri='',refreshToken='')
+name = onedrive
 ```
 上面的代码中定义了几个provider,里面是我内置的几个模型，其中meting是废的，由于接口没有提供size参数，固定了文件大小，再加上目前的接口基本无法提供完整数据仅供参考。   
 配置字段[tmplink]这是唯一值相当于一个模型实例的名称   

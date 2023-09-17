@@ -93,7 +93,7 @@ class PikPak():
                         #2021-11-30T09:12:48.820+08:00
                         dt = datetime.fromisoformat(file['created_time'])
                         ts_str = dt.strftime('%Y-%m-%d %H:%M:%S')
-                        dav_file = DavFile(id=file['id'],provider=self.provider,parent_id=file['parent_id'],kind= kind,name=file['name'],size=file['size'],create_time=ts_str,sha1=sha1) 
+                        dav_file = DavFile(id=file['id'],provider=self.provider,parent_id=file['parent_id'],kind= kind,name=file['name'],size=str(file['size']),create_time=ts_str,sha1=sha1) 
                         file_list.append(dav_file)
                     if result['next_page_token'] is None or len(result['next_page_token'])<2:
                         break

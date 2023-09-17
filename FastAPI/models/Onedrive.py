@@ -99,7 +99,6 @@ class Onedrive():
         if not file_list:
             file_list = []
             loop_index=1
-            kind = '1'
             sha1 = None
             nextLink=''
             while True:
@@ -122,6 +121,7 @@ class Onedrive():
                 if response.status_code == 200:
                     result = json.loads(response.text)
                     for file in result['value']:
+                        kind = '1'
                         if 'file' not in file:
                             kind = '0'
                         else:

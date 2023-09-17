@@ -48,6 +48,7 @@ class PikPak():
                 
         if self.config.has_option(self.username, 'token'):
             self.token = self.config.get(self.username, 'token')
+            self.headers['Authorization']='Bearer '+self.token
         else:
             self.config.add_section(self.username)
             self.refresh_token()

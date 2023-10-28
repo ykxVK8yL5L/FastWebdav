@@ -42,7 +42,7 @@ class WebDAV():
             "user-agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/27.0.1453.93 Safari/537.36",
             "Authorization": 'Basic '+ auth_token
         }
-        self.client = Client(self.url, auth=(self.username, self.password))
+        self.client = Client(self.url, auth=(self.username, self.password),verify=False)
 
         parsed_url = urlparse(self.url)
         self.netloc = parsed_url.netloc

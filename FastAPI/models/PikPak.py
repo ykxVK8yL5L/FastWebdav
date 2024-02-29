@@ -65,7 +65,6 @@ class PikPak():
         if not file_list:
             file_list = []
             loop_index=1
-            kind = '1'
             sha1 = None
             page_token=''
             while True:
@@ -83,6 +82,7 @@ class PikPak():
                 if response.status_code == 200:
                     result = json.loads(response.text)
                     for file in result['files']:
+                        kind = '1'
                         if file['kind']=='drive#folder':
                             kind = '0'
                         else:

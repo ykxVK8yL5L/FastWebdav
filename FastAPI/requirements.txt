@@ -1,4 +1,6 @@
 uvicorn==0.18.2
+pydantic==2.3.0
+pydantic-core==2.6.3
 datetime
 fastapi==0.103.1
 requests

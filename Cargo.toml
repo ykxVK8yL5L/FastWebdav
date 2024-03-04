@@ -12,6 +12,7 @@ chrono = "0.4.24"
 dashmap = "=4.0.2"
 futures-util = "=0.3"
 headers = "=0.3.4"
+dirs = "5.0.1"
 hyper = { version = "0.14.26", features = ["server", "http2"] }
 moka = { version = "0.9.2", default-features = false, features = ["future"] }
 openssl-probe = { version = "=0.1.4", optional = true }

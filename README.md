@@ -6,6 +6,40 @@ Docker主页:https://hub.docker.com/r/ykxvk8yl5l/fast-webdav
 之前的几个webdav项目都是通过原生rust实现，技术难度并不大，但是扩展性太差。后来想着用rust做个webdav然后数据通过api提供统一格式就可以自由的扩展了，所以才有了这个项目。
 说到数据Python是获取数据的最佳选择了。才用FastAPI负责后端数据提供。具体接口信息可以看下:8000/docs里面的接口文档。   
 # 使用
+
+## 20240304更新 使用可使用第三方服务器(deta.sapce)提供数据支持
+命令示例
+```
+fast-webdav --server '服务器地址' -h 'X-Space-App-Key:XXXXXXXXXXXXXXX'
+```
+以下为全部命令参数：
+```
+USAGE:
+    fast-webdav [OPTIONS]
+
+FLAGS:
+        --help       Prints help information
+    -V, --version    Prints version information
+
+OPTIONS:
+    -W, --auth-password <auth-password>              WebDAV authentication password [env: WEBDAV_AUTH_PASSWORD=]
+    -U, --auth-user <auth-user>                      WebDAV authentication username [env: WEBDAV_AUTH_USER=]
+        --cache-size <cache-size>                    Directory entries cache size [default: 1000]
+        --cache-ttl <cache-ttl>                      Directory entries cache expiration time in seconds [default: 600]
+    -h, --headers <headers>...                       
+        --host <host>                                Listen host [env: HOST=]  [default: 0.0.0.0]
+    -p, --port <port>                                Listen port [env: PORT=]  [default: 9867]
+    -S, --read-buffer-size <read-buffer-size>         [default: 10485760]
+        --root <root>                                Root directory path [default: /]
+        --server <server>                             [env: FASTWEBDAV_SERVER=]  [default: http://127.0.0.1:8000/]
+        --strip-prefix <strip-prefix>
+            Prefix to be stripped off when handling request [env: WEBDAV_STRIP_PREFIX=]
+
+        --upload-buffer-size <upload-buffer-size>     [default: 16777216]
+    -w, --workdir <workdir>
+            Working directory, refresh_token will be stored in there if specified
+```
+
 ## 加入解密功能，还不完善，稍后再细说 需要在configs目录新建 encrypt_dirs.ini内容为: 
 ```
 [path] #加密路径，目前以starts_with进行判断

@@ -1,5 +1,6 @@
 use std::convert::Infallible;
 use std::net::ToSocketAddrs;
+use std::path::PathBuf;
 use std::{env, io};
 use headers::{authorization::Basic, Authorization, HeaderMapExt};
 use structopt::StructOpt;
@@ -30,6 +31,12 @@ struct Opt {
     #[structopt(short = "W", long, env = "WEBDAV_AUTH_PASSWORD")]
     auth_password: Option<String>,
 
+    #[structopt(long, env = "FASTWEBDAV_SERVER",default_value = "http://127.0.0.1:8000/")]
+    server: String,
+
+    #[structopt(short, long)]
+    headers: Option<Vec<String>>,
+
    
     #[structopt(short = "S", long, default_value = "10485760")]
     read_buffer_size: usize,
@@ -47,8 +54,8 @@ struct Opt {
     #[structopt(long, default_value = "/")]
     root: String,
     /// Working directory, refresh_token will be stored in there if specified
-    // #[structopt(short = "w", long)]
-    // workdir: Option<PathBuf>,
+    #[structopt(short = "w", long)]
+    workdir: Option<PathBuf>,
         
     /// Prefix to be stripped off when handling request.
     #[structopt(long, env = "WEBDAV_STRIP_PREFIX")]
@@ -74,9 +81,12 @@ async fn main() -> anyhow::Result<()> {
         anyhow::bail!("auth-user and auth-password should be specified together.");
     }
 
+    let workdir = opt
+        .workdir
+        .or_else(|| dirs::cache_dir().map(|c| c.join("fast-webdav")));
 
     
-    let fs = WebdavDriveFileSystem::new(opt.root, opt.cache_size, opt.cache_ttl,opt.upload_buffer_size,false,false)
+    let fs = WebdavDriveFileSystem::new(opt.root,opt.server,opt.headers, workdir,opt.cache_size, opt.cache_ttl,opt.upload_buffer_size,false,false)
         .await
         .map_err(|_| {
             io::Error::new(

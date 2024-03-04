@@ -49,7 +49,7 @@ pub use crate::model::*;
 
 
 const UA: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) xiaolongyunpan/3.2.7 Chrome/100.0.4896.143 Electron/18.2.0 Safari/537.36";
-const API_URL:&str = "http://127.0.0.1:8000/";
+//const API_URL:&str = "http://127.0.0.1:8000/";
 
 
 
@@ -60,6 +60,9 @@ pub struct WebdavDriveFileSystem {
     dir_cache: Cache,
     uploading: Arc<DashMap<String, Vec<WebdavFile>>>,
     root: PathBuf,
+    server:String,
+    headers: Option<Vec<String>>,
+    workdir: Option<PathBuf>,
     client:reqwest::Client,
     upload_buffer_size: usize,
     skip_upload_same_size: bool,
@@ -69,6 +72,9 @@ pub struct WebdavDriveFileSystem {
 impl WebdavDriveFileSystem {
     pub async fn new(
         root: String,
+        server:String,
+        headers:Option<Vec<String>>,
+        workdir: Option<PathBuf>,
         cache_size: u64,
         cache_ttl: u64,
         upload_buffer_size: usize,
@@ -104,6 +110,9 @@ impl WebdavDriveFileSystem {
             dir_cache,
             uploading: Arc::new(DashMap::new()),
             root,
+            server,
+            headers,
+            workdir,
             client,
             upload_buffer_size,
             skip_upload_same_size,
@@ -115,6 +124,20 @@ impl WebdavDriveFileSystem {
         Ok(driver)
     }
 
+    fn parse_headers(&self) -> HashMap<String, String> {
+        let mut headers_map = HashMap::new();
+
+        if let Some(headers) = &self.headers {
+            for header in headers {
+                let parts: Vec<&str> = header.split(":").collect();
+                if parts.len() == 2 {
+                    headers_map.insert(parts[0].to_string(), parts[1].to_string());
+                }
+            }
+        }
+
+        headers_map
+    }
  
    
     async fn get_request<T, U>(&self, url: String, req: &T) -> Result<Option<U>>
@@ -132,6 +155,16 @@ impl WebdavDriveFileSystem {
         headers.insert("content-type", "application/json;charset=UTF-8".parse().unwrap());
         headers.insert("sec-fetch-site", "cross-site".parse().unwrap());
         headers.insert("sec-fetch-mode", "cors".parse().unwrap());
+
+        let extHeaders = self.parse_headers();
+        for (key, value) in extHeaders.iter() {
+            let header_name = HeaderName::from_bytes(key.as_bytes()).unwrap();
+            let header_value = HeaderValue::from_str(value).unwrap();
+            headers.insert(header_name, header_value);
+        }
+        
+
+
         let res = self
             .client
             .get(url.clone())
@@ -174,6 +207,13 @@ impl WebdavDriveFileSystem {
         headers.insert("content-type", "application/json;charset=UTF-8".parse().unwrap());
         headers.insert("sec-fetch-site", "cross-site".parse().unwrap());
         headers.insert("sec-fetch-mode", "cors".parse().unwrap());
+
+        let extHeaders = self.parse_headers();
+        for (key, value) in extHeaders.iter() {
+            let header_name = HeaderName::from_bytes(key.as_bytes()).unwrap();
+            let header_value = HeaderValue::from_str(value).unwrap();
+            headers.insert(header_name, header_value);
+        }
         let res = self
             .client
             .post(url.clone())
@@ -215,6 +255,14 @@ impl WebdavDriveFileSystem {
         headers.insert("content-type", "application/json;charset=UTF-8".parse().unwrap());
         headers.insert("sec-fetch-site", "cross-site".parse().unwrap());
         headers.insert("sec-fetch-mode", "cors".parse().unwrap());
+
+        let extHeaders = self.parse_headers();
+        for (key, value) in extHeaders.iter() {
+            let header_name = HeaderName::from_bytes(key.as_bytes()).unwrap();
+            let header_value = HeaderValue::from_str(value).unwrap();
+            headers.insert(header_name, header_value);
+        }
+
         let res = self
             .client
             .post(url.clone())
@@ -273,7 +321,7 @@ impl WebdavDriveFileSystem {
             path_str:&path_str,
         };
         
-        let create_url = format!("{}{}/create_folder",API_URL,parent_file.provider.unwrap()); 
+        let create_url = format!("{}{}/create_folder",self.server,parent_file.provider.unwrap()); 
         let created_folder:WebdavFile = match self.post_request(create_url, &create_req).await{
             Ok(res)=>res.unwrap(),
             Err(err)=>{
@@ -305,7 +353,7 @@ impl WebdavDriveFileSystem {
             file:file.clone(),
             remove_path:remove_path,
         };
-        let remove_url = format!("{}{}/remove_file",API_URL,file.clone().provider.unwrap()); 
+        let remove_url = format!("{}{}/remove_file",self.server,file.clone().provider.unwrap()); 
         //  下面的方法返回删除的文件，以下的重命名和移动都一样
         // let removed_file:WebdavFile = match self.post_request(remove_url, &remove_req).await{
         //     Ok(res)=>res.unwrap(),
@@ -343,7 +391,7 @@ impl WebdavDriveFileSystem {
             from:from_path,
             to:to_path,
         };
-        let rename_url = format!("{}{}/rename_file",API_URL,file.clone().provider.unwrap()); 
+        let rename_url = format!("{}{}/rename_file",self.server,file.clone().provider.unwrap()); 
         match self.post_request(rename_url, &rename_req).await{
             Ok(res)=>res.unwrap(),
             Err(err)=>{
@@ -374,7 +422,7 @@ impl WebdavDriveFileSystem {
             to:to_path,
         };
 
-        let move_url = format!("{}{}/move_file",API_URL,file.clone().provider.unwrap()); 
+        let move_url = format!("{}{}/move_file",self.server,file.clone().provider.unwrap()); 
         let moved_file:WebdavFile=match self.post_request(move_url, &move_req).await{
             Ok(res)=>res.unwrap(),
             Err(err)=>{
@@ -390,7 +438,7 @@ impl WebdavDriveFileSystem {
             file:file.clone(),
             new_parent_id:new_parent_id,
         };
-        let copy_url = format!("{}{}/copy_file",API_URL,file.clone().provider.unwrap()); 
+        let copy_url = format!("{}{}/copy_file",self.server,file.clone().provider.unwrap()); 
         match self.post_request(copy_url, &copy_req).await{
             Ok(res)=>res.unwrap(),
             Err(err)=>{
@@ -419,7 +467,7 @@ impl WebdavDriveFileSystem {
         let mut return_list:Vec<WebdavFile>=vec![];
         let mut file_list:Vec<WebdavFile>=vec![];
         if parent_file_id == '0'.to_string() && path_str == '/'.to_string() {
-            let list_url = API_URL.to_string();
+            let list_url = self.server.to_string();
             let files:Vec<WebdavFile> = match self.get_request(list_url, &req).await{
                 Ok(res)=>res.unwrap(),
                 Err(err)=>{
@@ -436,7 +484,7 @@ impl WebdavDriveFileSystem {
                     panic!("文件列表请求失败: {:?}", err)
                 }
             };
-            let list_url = format!("{}{}/list",API_URL,parent_file.provider.unwrap());
+            let list_url = format!("{}{}/list",self.server,parent_file.provider.unwrap());
             let files:Vec<WebdavFile> = match self.post_request(list_url, &req).await{
                 Ok(res)=>res.unwrap(),
                 Err(err)=>{
@@ -689,7 +737,7 @@ impl WebdavDriveFileSystem {
             }
         }
 
-        let download_url = format!("{}{}/url",API_URL,davfile.clone().provider.unwrap());
+        let download_url = format!("{}{}/url",self.server,davfile.clone().provider.unwrap());
         let donwload_url:String = match self.post_request(download_url, &davfile).await{
             Ok(res)=>res.unwrap(),
             Err(err)=>{
@@ -757,7 +805,7 @@ impl WebdavDriveFileSystem {
             size: size,
         };
 
-        let init_upload_url = format!("{}{}/init",API_URL,provider);
+        let init_upload_url = format!("{}{}/init",self.server,provider);
         let file_upload_init_res:UploadInitResponse = match  self.post_request(init_upload_url,&init_file_req).await{
             Ok(res)=>res.unwrap(),
             Err(err)=>{
@@ -802,7 +850,7 @@ impl WebdavDriveFileSystem {
             .part("filedata",formfiledata)
             .text("slice_req", json_base_str);
 
-        let uploader_url = format!("{}{}/upload_chunk",API_URL,file.clone().provider.unwrap());
+        let uploader_url = format!("{}{}/upload_chunk",self.server,file.clone().provider.unwrap());
         let slice_upload_res:SliceUploadResponse = match self.post_body_request(uploader_url,form).await {
             Ok(res)=>res.unwrap(),
             Err(err)=>{
@@ -835,7 +883,7 @@ impl WebdavDriveFileSystem {
         // let form = reqwest::multipart::Form::new()
         //     .text("complete_req", json_base_str);
 
-        let complete_url = format!("{}{}/complete_upload",API_URL,file.clone().provider.unwrap());
+        let complete_url = format!("{}{}/complete_upload",self.server,file.clone().provider.unwrap());
         let complete_uplad_res:CompleteUploadResponse = match self.post_request(complete_url, &complete_upload_req).await {
             Ok(res) => res.unwrap(),
             Err(err)  => {

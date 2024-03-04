@@ -99,17 +99,17 @@ impl WebdavDriveFileSystem {
         let auth_cache = AuthCache::new(2);
 
         let confing_file = if let Some(dir) = workdir.as_ref() {
-            let confing_file = dir.join("configs/encrypt_dirs.ini").to_string_lossy().to_string();
+            let confing_file = dir.join("encrypt_dirs.ini").to_string_lossy().to_string();
             confing_file
         }else{
-            "configs/encrypt_dirs.ini".to_string()
+            "encrypt_dirs.ini".to_string()
         };
 
 
         let dirs_config: Option<Ini> = match Ini::load_from_file(&confing_file){
             Ok(res)=>Some(res),
             Err(err)=>{
-                error!("读取目录配置出错:{:?}",err);
+                error!("读取目录配置出错:{:?}，路径:{:?}",err,&confing_file);
                 None
             }
         };

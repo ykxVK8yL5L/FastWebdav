@@ -83,8 +83,7 @@ async fn main() -> anyhow::Result<()> {
 
     let workdir = opt
         .workdir
-        .or_else(|| dirs::cache_dir().map(|c| c.join("fast-webdav")));
-
+        .or_else(|| dirs::home_dir().map(|c| c.join("fast-webdav")));
     
     let fs = WebdavDriveFileSystem::new(opt.root,opt.server,opt.headers, workdir,opt.cache_size, opt.cache_ttl,opt.upload_buffer_size,false,false)
         .await

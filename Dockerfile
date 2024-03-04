@@ -1,7 +1,7 @@
 ARG PYTHON_VER=3.10
 ARG PYTHON_IMG_TYPE=alpine
 
-FROM python:${PYTHON_VER}-${PYTHON_IMG_TYPE} AS builder
+FROM python:3.10-alpine3.18 AS builder
 
 ARG PYTHON_VER=3.10
 ARG PYTHON_IMG_TYPE=alpine
@@ -15,7 +15,7 @@ RUN apk add --update gcc libxml2-dev libxslt-dev musl-dev make cargo
 COPY FastAPI/requirements-${EXT_TYPE}.txt /tmp/requirements.txt
 RUN pip wheel -r /tmp/requirements.txt --wheel-dir /tmp/wheels
 
-FROM python:${PYTHON_VER}-${PYTHON_IMG_TYPE}
+FROM python:3.10-alpine3.18
 COPY --from=builder /tmp/wheels/* /tmp/wheels/
 RUN pip install /tmp/wheels/*.whl && rm -rf /tmp
 ARG TARGETARCH

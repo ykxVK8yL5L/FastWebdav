@@ -1,6 +1,6 @@
 uvicorn==0.18.2
 datetime
-fastapi
+fastapi==0.103.1
 requests
 cachelib
 python-multipart

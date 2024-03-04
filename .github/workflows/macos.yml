@@ -60,7 +60,7 @@ jobs:
       - name: Upload binary to GitHub Release
         uses: svenstaro/upload-release-action@v2
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          repo_token: ${{ secrets.RELEASE_TOKEN }}
           file: target/release/fast-webdav*.tar.gz
           file_glob: true
           overwrite: true

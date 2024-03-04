@@ -1,9 +1,9 @@
-ARG PYTHON_VER=3.10
+ARG PYTHON_VER=3.8
 ARG PYTHON_IMG_TYPE=alpine
 
 FROM python:${PYTHON_VER}-${PYTHON_IMG_TYPE} AS builder
 
-ARG PYTHON_VER=3.10
+ARG PYTHON_VER=3.8
 ARG PYTHON_IMG_TYPE=alpine
 ARG EXT_TYPE=essential
 RUN if test "${PYTHON_IMG_TYPE}" = 'alpine' && test "${EXT_TYPE}" != 'essential'; then \
@@ -34,5 +34,5 @@ RUN mkdir -p /etc/fast-webdav
 WORKDIR /root/
 
 ADD fast-webdav-$TARGETARCH$TARGETVARIANT /usr/bin/fast-webdav
-#CMD ["/usr/bin/fast-webdav", "--workdir", "/etc/fast-webdav"]
+#CMD ["/usr/bin/fast-webdav", "--workdir", "/root/"]
 CMD [ "/entrypoint.sh" ]

@@ -16,7 +16,7 @@ mod utils;
 
 
 #[derive(StructOpt, Debug)]
-#[structopt(name = "webdav")]
+#[structopt(name = "fast-webdav")]
 struct Opt {
     /// Listen host
     #[structopt(long, env = "HOST", default_value = "0.0.0.0")]

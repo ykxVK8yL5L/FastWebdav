@@ -34,7 +34,7 @@ jobs:
       - name: Build wheels - universal2
         uses: PyO3/maturin-action@v1
         with:
-          args: --release --universal2 --out dist --strip 
+          args: --release --out dist --strip 
       - name: Install built wheel - universal2
         run: |
           pip install fast-webdav --no-index --find-links dist --force-reinstall

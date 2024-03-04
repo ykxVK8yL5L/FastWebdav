@@ -13,12 +13,10 @@ RUN if test "${PYTHON_IMG_TYPE}" = 'alpine' && test "${EXT_TYPE}" != 'essential'
     fi
 RUN apk add --update gcc libxml2-dev libxslt-dev musl-dev make cargo
 COPY FastAPI/requirements-${EXT_TYPE}.txt /tmp/requirements.txt
-RUN pip install pydantic
 RUN pip wheel -r /tmp/requirements.txt --wheel-dir /tmp/wheels
 
 FROM python:${PYTHON_VER}-${PYTHON_IMG_TYPE}
 COPY --from=builder /tmp/wheels/* /tmp/wheels/
-RUN pip install pydantic
 RUN pip install /tmp/wheels/*.whl && rm -rf /tmp
 ARG TARGETARCH
 ARG TARGETVARIANT

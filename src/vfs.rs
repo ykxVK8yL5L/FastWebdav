@@ -99,10 +99,10 @@ impl WebdavDriveFileSystem {
         let auth_cache = AuthCache::new(2);
 
         let confing_file = if let Some(dir) = workdir.as_ref() {
-            let confing_file = dir.join("encrypt_dirs.ini").to_string_lossy().to_string();
+            let confing_file = dir.join("configs/encrypt_dirs.ini").to_string_lossy().to_string();
             confing_file
         }else{
-            "encrypt_dirs.ini".to_string()
+            "configs/encrypt_dirs.ini".to_string()
         };
 
 

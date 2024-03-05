@@ -12,7 +12,8 @@ VOLUME /root/configs/
 WORKDIR /root/
 ADD fast-webdav-$TARGETARCH$TARGETVARIANT /usr/bin/fast-webdav
 
-COPY entrypoint-client.sh /entrypoint.sh && chmod +x /entrypoint.sh
+COPY entrypoint-client.sh /entrypoint.sh  
+RUN chmod +x /entrypoint.sh
 # ENTRYPOINT ["/sbin/tini", "--"]
 # CMD ["/usr/bin/fast-webdav", "--host", "0.0.0.0"]
 CMD [ "/entrypoint.sh" ]

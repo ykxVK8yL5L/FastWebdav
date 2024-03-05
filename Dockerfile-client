@@ -16,4 +16,5 @@ COPY entrypoint-client.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 # ENTRYPOINT ["/sbin/tini", "--"]
 # CMD ["/usr/bin/fast-webdav", "--host", "0.0.0.0"]
-CMD [ "/entrypoint.sh" ]
+# CMD [ "/entrypoint.sh" ]
+ENTRYPOINT [ "/entrypoint.sh" ]

@@ -15,6 +15,6 @@ ADD fast-webdav-$TARGETARCH$TARGETVARIANT /usr/bin/fast-webdav
 COPY entrypoint-client.sh /entrypoint.sh  
 RUN chmod +x /entrypoint.sh
 # ENTRYPOINT ["/sbin/tini", "--"]
-# CMD ["/usr/bin/fast-webdav", "--host", "0.0.0.0"]
+CMD ["/usr/bin/fast-webdav", "--host", "0.0.0.0"]
 # CMD [ "/entrypoint.sh" ]
-ENTRYPOINT [ "/entrypoint.sh" ]
+# ENTRYPOINT [ "/entrypoint.sh" ]

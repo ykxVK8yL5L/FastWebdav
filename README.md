@@ -12,6 +12,11 @@ Docker主页:https://hub.docker.com/r/ykxvk8yl5l/fast-webdav
 ```
 fast-webdav --server '服务器地址' -h 'X-Space-App-Key:XXXXXXXXXXXXXXX'
 ```
+Docker 命令示例(仅客户端)：
+```
+docker run --name fast-webdav-client -e  FASTWEBDAV_HEADERS="X-Space-App-Key:XXXXXXXXXXXXX" -e FASTWEBDAV_SERVER="XXXXXXXXXXXXXXXXXX" ykxvk8yl5l/fast-webdav:client
+```
+
 以下为全部命令参数：
 ```
 USAGE:

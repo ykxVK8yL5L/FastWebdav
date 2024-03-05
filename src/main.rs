@@ -34,7 +34,7 @@ struct Opt {
     #[structopt(long, env = "FASTWEBDAV_SERVER",default_value = "http://127.0.0.1:8000/")]
     server: String,
 
-    #[structopt(short, env = "FASTWEBDAV_HEDERS" long)]
+    #[structopt(short, env = "FASTWEBDAV_HEDERS",long)]
     headers: Option<Vec<String>>,
 
    

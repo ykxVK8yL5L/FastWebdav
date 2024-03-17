@@ -90,6 +90,7 @@ impl WebdavDriveFileSystem {
         };
 
         let client = reqwest::Client::builder()
+            .danger_accept_invalid_certs(true)
             .pool_idle_timeout(Duration::from_secs(300))
             .connect_timeout(Duration::from_secs(300))
             .timeout(Duration::from_secs(300))

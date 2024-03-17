@@ -1,8 +1,5 @@
 name: Build for encrypt
 on:
-  push:
-      branches:
-        - "encrypt"
   repository_dispatch:
   workflow_dispatch:
     inputs:
